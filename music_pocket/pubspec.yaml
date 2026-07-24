@@ -1,0 +1,85 @@
+name: music_pocket
+description: "A local-first music player with full library management"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.6.0
+  riverpod_annotation: ^2.6.0
+
+  # Audio Playback
+  just_audio: ^0.9.42
+  audio_session: ^0.1.21
+  audio_service: ^0.18.17
+  just_audio_media_kit: ^2.1.0
+  media_kit_libs_windows_audio: ^1.0.9
+
+  # Database
+  drift: ^2.22.0
+  sqlite3_flutter_libs: ^0.5.0
+
+  # File Operations
+  path_provider: ^2.1.0
+  path: ^1.9.0
+  file_picker: ^8.1.0
+
+  # Metadata
+  audio_metadata_reader: ^1.6.0
+
+  # Models
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # UI
+  cupertino_icons: ^1.0.8
+  flutter_svg: ^2.0.0
+  palette_generator: ^0.3.3
+  cached_network_image: ^3.4.0
+  flutter_staggered_animations: ^1.1.1
+  flutter_animate: ^4.5.0
+
+  # Utilities
+  uuid: ^4.5.0
+  intl: ^0.20.2
+  collection: ^1.19.0
+  logger: ^2.4.0
+  share_plus: ^10.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.22.0
+  build_runner: ^2.4.0
+  riverpod_generator: ^2.6.0
+  freezed: ^2.5.8
+  json_serializable: ^6.9.0
+
+flutter:
+  generate: true
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/fonts/
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700

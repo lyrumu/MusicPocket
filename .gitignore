@@ -1,0 +1,46 @@
+# Reference project (not part of this repo)
+namida/
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VSCode
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+music_pocket/.dart_tool/
+music_pocket/.flutter-plugins-dependencies
+music_pocket/.pub-cache/
+music_pocket/.pub/
+music_pocket/build/
+music_pocket/coverage/
+
+# Symbolication related
+music_pocket/app.*.symbols
+
+# Obfuscation related
+music_pocket/app.*.map.json
+
+# Android Studio build artifacts
+music_pocket/android/app/debug
+music_pocket/android/app/profile
+music_pocket/android/app/release
