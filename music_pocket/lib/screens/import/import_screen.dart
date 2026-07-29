@@ -181,10 +181,46 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   }
 
   Future<void> _pickFiles() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowMultiple: true,
-      allowedExtensions: const [
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowMultiple: true,
+        allowedExtensions: const [
+          'mp3',
+          'flac',
+          'wav',
+          'ogg',
+          'm4a',
+          'aac',
+          'wma',
+          'opus',
+        ],
+      );
+
+      if (result == null) return;
+      final paths = result.files
+          .map((f) => f.path)
+          .whereType<String>()
+          .toSet()
+          .toList();
+      _addPaths(paths);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('选择文件失败：$e')),
+      );
+    }
+  }
+
+  Future<void> _pickFolder() async {
+    try {
+      final result = await FilePicker.platform.getDirectoryPath();
+      if (result == null) return;
+
+      final dir = Directory(result);
+      if (!await dir.exists()) return;
+
+      const audioExtensions = {
         'mp3',
         'flac',
         'wav',
@@ -193,48 +229,26 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
         'aac',
         'wma',
         'opus',
-      ],
-    );
+      };
 
-    if (result == null) return;
-    final paths = result.files
-        .map((f) => f.path)
-        .whereType<String>()
-        .toSet()
-        .toList();
-    _addPaths(paths);
-  }
-
-  Future<void> _pickFolder() async {
-    final result = await FilePicker.platform.getDirectoryPath();
-    if (result == null) return;
-
-    final dir = Directory(result);
-    if (!await dir.exists()) return;
-
-    const audioExtensions = {
-      'mp3',
-      'flac',
-      'wav',
-      'ogg',
-      'm4a',
-      'aac',
-      'wma',
-      'opus',
-    };
-
-    final files = <String>[];
-    await for (final entity in dir.list(recursive: true)) {
-      if (entity is! File) continue;
-      final name = entity.path.toLowerCase();
-      final matched = audioExtensions
-          .where((ext) => name.endsWith('.$ext'))
-          .isNotEmpty;
-      if (matched) {
-        files.add(entity.path);
+      final files = <String>[];
+      await for (final entity in dir.list(recursive: true)) {
+        if (entity is! File) continue;
+        final name = entity.path.toLowerCase();
+        final matched = audioExtensions
+            .where((ext) => name.endsWith('.$ext'))
+            .isNotEmpty;
+        if (matched) {
+          files.add(entity.path);
+        }
       }
+      _addPaths(files);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('选择文件夹失败：$e')),
+      );
     }
-    _addPaths(files);
   }
 
   void _addPaths(List<String> paths) {

@@ -40,61 +40,58 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
     final tracks = tracksAsync.asData?.value ?? [];
     final currentTrack = currentTrackAsync.asData?.value;
 
-    return SafeArea(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 4, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TabBar(
-                    controller: _tabController,
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    dividerHeight: 0,
-                    labelColor: theme.colorScheme.primary,
-                    unselectedLabelColor: theme.colorScheme.outline,
-                    indicatorSize: TabBarIndicatorSize.label,
-                    tabs: const [
-                      Tab(text: '歌曲'),
-                      Tab(text: '艺术家'),
-                      Tab(text: '歌单'),
-                    ],
-                  ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 4, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  dividerHeight: 0,
+                  labelColor: theme.colorScheme.primary,
+                  unselectedLabelColor: theme.colorScheme.outline,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  tabs: const [
+                    Tab(text: '歌曲'),
+                    Tab(text: '艺术家'),
+                    Tab(text: '歌单'),
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () => _openImportScreen(context),
-                  tooltip: '导入音乐',
-                ),
-              ],
-            ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () => _openImportScreen(context),
+                tooltip: '导入音乐',
+              ),
+            ],
           ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildTracksList(tracks, currentTrack),
-                _buildPlaceholder(
-                  icon: Icons.person_outline,
-                  title: '艺术家',
-                  subtitle: '${_uniqueCount(tracks.map((t) => t.artist))} 位艺术家',
-                ),
-                _buildPlaceholder(
-                  icon: Icons.playlist_play_outlined,
-                  title: '暂无歌单',
-                  subtitle: '歌单创建与管理功能后续实现',
-                  actionText: '敬请期待',
-                ),
-              ],
-            ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildTracksList(tracks, currentTrack),
+              _buildPlaceholder(
+                icon: Icons.person_outline,
+                title: '艺术家',
+                subtitle: '${_uniqueCount(tracks.map((t) => t.artist))} 位艺术家',
+              ),
+              _buildPlaceholder(
+                icon: Icons.playlist_play_outlined,
+                title: '暂无歌单',
+                subtitle: '歌单创建与管理功能后续实现',
+                actionText: '敬请期待',
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
-
   Widget _buildTracksList(List<Track> tracks, Track? currentTrack) {
     if (tracks.isEmpty) {
       return Center(
@@ -116,7 +113,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 80),
+      padding: const EdgeInsets.only(bottom: 16),
       itemCount: tracks.length,
       itemBuilder: (context, index) {
         final track = tracks[index];

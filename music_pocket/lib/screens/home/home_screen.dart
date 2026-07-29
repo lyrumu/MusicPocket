@@ -23,40 +23,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final theme = Theme.of(context);
     final currentTrack = ref.watch(currentTrackProvider).asData?.value;
     return Scaffold(
-      body: Column(
-        children: [
-          _buildTopBar(theme),
-          Expanded(
-            child: Stack(
-              children: [
-                _buildBody(),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 280),
-                    reverseDuration: const Duration(milliseconds: 240),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, anim) => SlideTransition(
-                      position: anim.drive(
-                        Tween(begin: const Offset(0, 1), end: Offset.zero),
-                      ),
-                      child: child,
-                    ),
-                    child: currentTrack == null
-                        ? const SizedBox.shrink()
-                        : MiniPlayer(
-                            key: const ValueKey('mini'),
-                            onTap: () => _openFullPlayer(context),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(theme),
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(child: _buildBody()),
+                  if (currentTrack != null)
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 280),
+                      reverseDuration: const Duration(milliseconds: 240),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, anim) => SlideTransition(
+                        position: anim.drive(
+                          Tween(
+                            begin: const Offset(0, 1),
+                            end: Offset.zero,
                           ),
-                  ),
-                ),
-              ],
+                        ),
+                        child: child,
+                      ),
+                      child: MiniPlayer(
+                        key: const ValueKey('mini'),
+                        onTap: () => _openFullPlayer(context),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,

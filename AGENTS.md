@@ -15,6 +15,15 @@ Flutter 3.44+ / Dart ^3.12。跨平台（iOS/Win/Mac/）。本地优先音乐播
 
 参考项目在 `namida/`（同级目录）— **使用 namida 的任何功能前必须先问我**。
 
+## 规则
+
+1. **出现困难问题可优先参考namida/** — 除非你有更好的颠覆性方案
+2. **使用 namida 前先问我** — 不能盲目复制代码 我只需要namida的部分功能 同时将添加我认为额外需要的功能。
+3. **一次只做一个小功能** — 完成后更新 `DONE.md`。
+4. **持续更新本文件** — 发现新的注意事项就加进来。
+5. **有不明确的需求必须先问我** - 禁止胡乱猜测
+
+
 ## 仓库结构
 
 ```
@@ -72,14 +81,29 @@ flutter run -d windows
 
 - **现有的测试 `test/widget_test.dart` 已过期** — 引用了不存在的 `MyApp`，会运行失败。需要修复后才能信任测试结果。
 - **生成文件未提交到仓库** — 修改了 `@freezed` 模型、`@riverpod` provider 或 Drift 表定义后，必须运行 `build_runner`。
-- **Windows 优先** — 确保所有改动在 Windows/IOS/macOS 上能编译运行。Android/Web 是次要的。
+- **苹果生态优先** — 确保所有改动在 iOS/macOS 上能编译运行。Android/Windows是次要的。
 - **`pubspec.yaml` 设置了 `generate: true`**（Flutter 资源代码生成已开启）。
 - 所有音频文件保留在本地，**不要上传到任何地方**。
 - `.gitignore` 分两层：根目录忽略 `namida/`，`music_pocket/.gitignore` 处理 Flutter 标准忽略规则。
 
-## 规则
+## iOS / macOS 部署备忘
 
-1. **使用 namida 前先问我** — 不能盲目复制代码 我只需要namida的部分功能 同时将添加我认为额外需要的功能。
-2. **一次只做一个小功能** — 完成后更新 `DONE.md`。
-3. **持续更新本文件** — 发现新的注意事项就加进来。
-4. **有不明确的需求必须先问我** - 禁止胡乱猜测
+### 上架前需完成的硬性条件
+1. **Apple Developer Program**（¥99/年）— 没有它无法签名和分发。
+2. **Xcode 首次配置**（mac 本地开发需要）：
+   ```bash
+   sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+   sudo xcodebuild -runFirstLaunch
+   ```
+3. **Bundle ID 当前值**：`com.lyrumu.musicPocket`（`ios/Runner.xcodeproj` 中设定），上架前需确认是否需要修改。
+
+### iOS 隐私权限
+- `ios/Runner/Info.plist` 已预留 `NSAppleMusicUsageDescription`（`on_audio_query` 需要，用于扫描本地音频文件）。
+- 如果后续添加涉及麦克风、照片等新功能，需追加对应权限描述。
+
+### macOS 注意
+- `macos/Runner/Info.plist` 暂无额外权限需求。
+- macOS 桌面端运行：`flutter run -d macos`。
+
+### Podfile
+- `ios/Podfile` 和 `macos/Podfile` 由 Flutter 在首次 `flutter build ios` / `flutter run -d macos` 时自动生成，不需要预先创建。

@@ -1,4 +1,6 @@
 # 完成清单
+置顶信息：
+1.构建命令提示：cd music_pocket && flutter run -d macos
 
 ## ✅ 第 1 步：编译基础设施
 - 补 `pubspec.yaml` 依赖：`freezed_annotation`、`json_annotation`、`freezed`、`json_serializable`、`audio_metadata_reader`（替换 `on_audio_query`）
@@ -70,6 +72,17 @@
 - 进度条可拖动：`LinearProgressIndicator` → `Slider`（trackHeight 2 + 小拇指），边拖边预览 `playModeProvider`，松手才 `seek`，避免抖动
 - 顺序播放"隔一首"修复：完成事件 guard 改为只在 `processingState` 离开 `completed` 时重置（之前在 `seek(Duration.zero)` 后立刻 false 会让重复 `completed` 再触发一次 `playNext`）
 - 播放模式按钮直接挂在 MiniPlayer 控制栏左侧（循环/单曲循环/随机），无需展开全屏播放器即可切换
+
+## ✅ 第 14 步：修复 macOS 导入无响应
+- 根因：macOS App Sandbox 未声明文件访问权限，`file_picker` 被静默阻止，点击「选择文件/选择文件夹」无反应
+- `macos/Runner/DebugProfile.entitlements` 与 `macos/Runner/Release.entitlements` 增加 `com.apple.security.files.user-selected.read-write`
+- `lib/screens/import/import_screen.dart`：`_pickFiles`/`_pickFolder` 添加 try-catch，选择失败时通过 SnackBar 提示用户
+
+## ✅ 第 15 步：彻底修复底部溢出
+- 根因：`HomeScreen` body 包了 `SafeArea`，`LibraryScreen` 内部又包了一层 `SafeArea`，双重 SafeArea 叠加导致内容区高度被严重压缩，MiniPlayer + NavigationBar 放不下
+- `HomeScreen` body 保留 `SafeArea`；`LibraryScreen` 去掉多余的 `SafeArea`
+- MiniPlayer 从悬浮 `Stack` 改为 `Column` 正常布局流（`Expanded(body)` + `MiniPlayer`）
+- `library_screen.dart`：`ListView` 底部 padding 从 80 降至 16
 
 ## ⚠️ 环境注意事项（更新到 AGENTS.md）
 - 系统没有 Rust 工具链 → 不能用 `metadata_god`，已切到 `audio_metadata_reader`（纯 Dart）
