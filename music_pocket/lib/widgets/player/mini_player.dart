@@ -5,7 +5,6 @@ import '../../core/theme/app_colors.dart';
 import '../../providers/track_provider.dart';
 import '../../services/audio_player_service.dart';
 import '../common/cover_placeholder.dart';
-// ponytail: close button placed on mini player — dismiss is one tap from any screen
 
 class MiniPlayer extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
@@ -77,40 +76,48 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
   }
 
   Widget _buildProgressBar(AudioPlayerService audioService, ThemeData theme) {
-    final duration = audioService.duration;
-    final maxMs = duration.inMilliseconds > 0 ? duration.inMilliseconds : 1;
-    return StreamBuilder<Duration>(
-      stream: audioService.positionStream,
-      builder: (context, snapshot) {
-        final position = snapshot.data ?? Duration.zero;
-        final raw =
-            _dragValue ?? position.inMilliseconds.clamp(0, maxMs).toDouble();
-        final value = raw.clamp(0.0, maxMs.toDouble());
-        final enabled = duration.inMilliseconds > 0;
-        return SliderTheme(
-          data: SliderThemeData(
-            trackHeight: 2,
-            activeTrackColor: theme.colorScheme.primary,
-            inactiveTrackColor: theme.colorScheme.outline.withAlpha(50),
-            thumbColor: theme.colorScheme.primary,
-            overlayColor: theme.colorScheme.primary.withAlpha(30),
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-          ),
-          child: SizedBox(
-            height: 12,
-            child: Slider(
-              value: value,
-              min: 0,
-              max: maxMs.toDouble(),
-              onChanged: enabled ? (v) => setState(() => _dragValue = v) : null,
-              onChangeStart: (v) => setState(() => _dragValue = v),
-              onChangeEnd: (v) {
-                setState(() => _dragValue = null);
-                audioService.seek(Duration(milliseconds: v.toInt()));
-              },
-            ),
-          ),
+    return StreamBuilder<Duration?>(
+      stream: audioService.durationStream,
+      builder: (context, durationSnapshot) {
+        final duration = durationSnapshot.data ?? Duration.zero;
+        final maxMs = duration.inMilliseconds > 0 ? duration.inMilliseconds : 1;
+        return StreamBuilder<Duration>(
+          stream: audioService.positionStream,
+          builder: (context, positionSnapshot) {
+            final position = positionSnapshot.data ?? Duration.zero;
+            final enabled = duration.inMilliseconds > 0;
+            final raw = _dragValue ??
+                (enabled && position <= duration
+                    ? position.inMilliseconds.clamp(0, maxMs).toDouble()
+                    : 0.0);
+            final value = raw.clamp(0.0, maxMs.toDouble());
+            return SliderTheme(
+              data: SliderThemeData(
+                trackHeight: 2,
+                activeTrackColor: theme.colorScheme.primary,
+                inactiveTrackColor: theme.colorScheme.outline.withAlpha(50),
+                thumbColor: theme.colorScheme.primary,
+                overlayColor: theme.colorScheme.primary.withAlpha(30),
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+              ),
+              child: SizedBox(
+                height: 12,
+                child: Slider(
+                  value: value,
+                  min: 0,
+                  max: maxMs.toDouble(),
+                  onChanged:
+                      enabled ? (v) => setState(() => _dragValue = v) : null,
+                  onChangeStart: (v) => setState(() => _dragValue = v),
+                  onChangeEnd: (v) {
+                    setState(() => _dragValue = null);
+                    audioService.seek(Duration(milliseconds: v.toInt()));
+                  },
+                ),
+              ),
+            );
+          },
         );
       },
     );

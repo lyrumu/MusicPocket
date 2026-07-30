@@ -34,21 +34,39 @@ class PlayerScreen extends ConsumerWidget {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildTopBar(context),
-              const Spacer(),
-              _buildAlbumArt(currentTrack),
-              const Spacer(),
-              _buildTrackInfo(context, currentTrack),
-              const SizedBox(height: 24),
-              _buildProgressBar(context, ref, audioService, currentTrack),
-              const SizedBox(height: 16),
-              _buildControls(context, ref, audioService, currentTrack),
-              const SizedBox(height: 32),
-              _buildBottomActions(context, ref, currentTrack),
-              const SizedBox(height: 24),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        _buildTopBar(context),
+                        const Spacer(),
+                        _buildAlbumArt(currentTrack),
+                        const Spacer(),
+                        _buildTrackInfo(context, currentTrack),
+                        const SizedBox(height: 24),
+                        _buildProgressBar(
+                          context,
+                          ref,
+                          audioService,
+                          currentTrack,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildControls(context, ref, audioService, currentTrack),
+                        const SizedBox(height: 32),
+                        _buildBottomActions(context, ref, currentTrack),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),

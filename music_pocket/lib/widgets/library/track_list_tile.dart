@@ -9,6 +9,8 @@ class TrackListTile extends StatelessWidget {
   final bool isPlaying;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onEdit;
+  final VoidCallback? onAddToPlaylist;
 
   const TrackListTile({
     super.key,
@@ -16,6 +18,8 @@ class TrackListTile extends StatelessWidget {
     this.isPlaying = false,
     this.onTap,
     this.onLongPress,
+    this.onEdit,
+    this.onAddToPlaylist,
   });
 
   @override
@@ -50,6 +54,18 @@ class TrackListTile extends StatelessWidget {
         children: [
           Text(track.durationFormatted, style: theme.textTheme.bodySmall),
           const SizedBox(width: 8),
+          if (onAddToPlaylist != null)
+            IconButton(
+              icon: const Icon(Icons.playlist_add_outlined, size: 20),
+              visualDensity: VisualDensity.compact,
+              onPressed: onAddToPlaylist,
+            ),
+          if (onEdit != null)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 20),
+              visualDensity: VisualDensity.compact,
+              onPressed: onEdit,
+            ),
           if (isPlaying)
             Icon(Icons.equalizer, color: theme.colorScheme.primary, size: 20),
         ],

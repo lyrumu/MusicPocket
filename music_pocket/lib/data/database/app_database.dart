@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:meta/meta.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
+import '../daos/playlist_dao.dart';
 import '../daos/track_dao.dart';
 
 part 'app_database.g.dart';
@@ -92,7 +94,11 @@ class AppSettings extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
+  @visibleForTesting
+  AppDatabase.forTesting(super.e);
+
   late final TrackDao trackDao = TrackDao(this);
+  late final PlaylistDao playlistDao = PlaylistDao(this);
 
   @override
   int get schemaVersion => 2;

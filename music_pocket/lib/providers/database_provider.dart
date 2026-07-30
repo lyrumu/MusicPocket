@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database/app_database.dart';
+import '../data/repositories/playlist_repository.dart';
 import '../data/repositories/track_repository.dart';
 import '../services/metadata_service.dart';
 
@@ -19,4 +20,8 @@ final trackRepositoryProvider = Provider<TrackRepository>((ref) {
     ref.watch(appDatabaseProvider).trackDao,
     ref.watch(metadataServiceProvider),
   );
+});
+
+final playlistRepositoryProvider = Provider<PlaylistRepository>((ref) {
+  return PlaylistRepository(ref.watch(appDatabaseProvider).playlistDao);
 });

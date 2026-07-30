@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
@@ -10,7 +10,12 @@ import 'audio_handler.dart';
 enum PlayMode { list, one, shuffle }
 
 class AudioPlayerService {
-  AudioPlayerService._();
+  AudioPlayerService._() {
+    unawaited(_player.setVolume(1.0));
+    _durationSub = _player.durationStream.listen((d) {
+      if (d != null) _duration = d;
+    });
+  }
   static final instance = AudioPlayerService._();
 
   final AudioPlayer _player = AudioPlayer();
@@ -22,12 +27,19 @@ class AudioPlayerService {
   MusicPocketAudioHandler? _handler;
   StreamSubscription<PlayerState>? _playerStateSub;
   StreamSubscription<Track?>? _mediaItemSyncSub;
+  StreamSubscription<Duration?>? _durationSub;
   bool _completingGuard = false;
 
   final StreamController<Track?> _currentTrackController =
       StreamController<Track?>.broadcast();
   final StreamController<PlayMode> _playModeController =
       StreamController<PlayMode>.broadcast();
+  final StreamController<double> _volumeController =
+      StreamController<double>.broadcast();
+
+  double _volume = 1.0;
+  Duration _duration = Duration.zero;
+
 
   AudioPlayer get player => _player;
   List<Track> get queue => List.unmodifiable(_queue);
@@ -48,13 +60,14 @@ class AudioPlayerService {
   Stream<Duration?> get durationStream => _player.durationStream;
   Stream<PlayerState> get playerStateStream => _player.playerStateStream;
   Stream<bool> get playingStream => _player.playingStream;
+  Stream<double> get volumeStream => _volumeController.stream;
 
   Duration get position => _player.position;
-  Duration get duration => _player.duration ?? Duration.zero;
+  Duration get duration => _duration;
   bool get playing => _player.playing;
+  double get volume => _volume;
 
   Future<void> loadAndPlay(String filePath, {bool autoPlay = true}) async {
-    debugPrint('[AudioPlayerService] loadAndPlay: $filePath');
     try {
       await _player
           .setFilePath(filePath)
@@ -64,17 +77,16 @@ class AudioPlayerService {
                 throw TimeoutException('setFilePath timeout: $filePath'),
           );
       final dur = _player.duration;
-      debugPrint(
-        '[AudioPlayerService] setFilePath OK | duration=$dur | exists=${File(filePath).existsSync()}',
-      );
+      if (dur != null) _duration = dur;
       if (autoPlay) {
         await _player.play();
-        debugPrint('[AudioPlayerService] play() returned OK');
       }
     } catch (e, st) {
-      debugPrint('[AudioPlayerService] ERROR loading file: $filePath');
-      debugPrint('[AudioPlayerService] $e');
-      debugPrint('[AudioPlayerService] $st');
+      if (kDebugMode) {
+        debugPrint('[AudioPlayerService] ERROR loading file: $filePath');
+        debugPrint('[AudioPlayerService] $e');
+        debugPrint('[AudioPlayerService] $st');
+      }
     }
   }
 
@@ -83,6 +95,13 @@ class AudioPlayerService {
   Future<void> stop() async => _player.stop();
 
   Future<void> seek(Duration position) async => _player.seek(position);
+
+  Future<void> setVolume(double value) async {
+    final clamped = value.clamp(0.0, 1.0);
+    await _player.setVolume(clamped);
+    _volume = clamped;
+    _volumeController.add(clamped);
+  }
 
   Future<void> togglePlay() async {
     if (_player.playing) {
@@ -222,9 +241,11 @@ class AudioPlayerService {
   Future<void> dispose() async {
     await _playerStateSub?.cancel();
     await _mediaItemSyncSub?.cancel();
+    await _durationSub?.cancel();
     await _player.dispose();
     await _currentTrackController.close();
     await _playModeController.close();
+    await _volumeController.close();
   }
 
   void attachHandler(MusicPocketAudioHandler handler) {

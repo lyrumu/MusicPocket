@@ -78,11 +78,78 @@
 - `macos/Runner/DebugProfile.entitlements` 与 `macos/Runner/Release.entitlements` 增加 `com.apple.security.files.user-selected.read-write`
 - `lib/screens/import/import_screen.dart`：`_pickFiles`/`_pickFolder` 添加 try-catch，选择失败时通过 SnackBar 提示用户
 
-## ✅ 第 15 步：彻底修复底部溢出
-- 根因：`HomeScreen` body 包了 `SafeArea`，`LibraryScreen` 内部又包了一层 `SafeArea`，双重 SafeArea 叠加导致内容区高度被严重压缩，MiniPlayer + NavigationBar 放不下
-- `HomeScreen` body 保留 `SafeArea`；`LibraryScreen` 去掉多余的 `SafeArea`
-- MiniPlayer 从悬浮 `Stack` 改为 `Column` 正常布局流（`Expanded(body)` + `MiniPlayer`）
-- `library_screen.dart`：`ListView` 底部 padding 从 80 降至 16
+## ✅ 第 15 步：PlayerScreen 垂直溢出修复
+- 根因：`PlayerScreen` body 的 `SafeArea → Column` 固定子项总高约 660px，超出 macOS 默认窗口 600px。两个 `Spacer` 在负剩余空间下无法压缩，`RenderFlex OVERFLOWING`
+- 修复：`Column` 外套 `LayoutBuilder → SingleChildScrollView → ConstrainedBox(minHeight) → IntrinsicHeight`
+- 内容 ≤ 视口时：`ConstrainedBox` 拉到满高，`IntrinsicHeight` 给 `Spacer` 有界高度，封面居中留白不变
+- 内容 > 视口时：超出的内容可滚动
+- 规避了 `SingleChildScrollView(Column(Spacer))` 的 `unbounded height` 坑
+
+## ✅ 第 16 步：歌曲列表自定义信息入口
+- 需求：导入歌曲时自动保留音频自带封面/作者/专辑等默认信息，同时允许用户在歌曲列表中自定义这些信息
+- 实现：
+  - `lib/widgets/library/track_list_tile.dart`：新增 `onEdit` 回调；在 trailing 区域（时长左侧）显示「编辑」图标按钮
+  - `lib/screens/library/library_screen.dart`：为每个 `TrackListTile` 传入 `onEdit`，点击后弹出 `TrackEditSheet`
+- 自定义编辑面板（`TrackEditSheet`）支持：标题、艺术家、专辑、流派、年份、自定义封面/移除封面、删除歌曲；保存后自动标记 `isUserEdited=true`
+- 导入逻辑（`TrackRepository.importPath`）按 `filePath` 去重，已编辑的歌曲不会被后续重复导入覆盖
+
+## ✅ 第 17 步：修复 Mini Player 进度条 + App 内置音量控制
+- 修复 `mini_player.dart` 进度条：duration 未加载时若 positionStream 残留旧位置，会被 clamp 到终点；现在 `duration <= 0` 或 `position > duration` 时一律回到起点
+- 内置音量控制：`AudioPlayerService` 加 `setVolume` / `volume` / `volumeStream`（just_audio 应用级音量，不影响系统音量）
+- `lib/widgets/common/volume_control.dart`：音量图标 + 小 Slider，放在 `home_screen.dart` 顶栏主题切换按钮旁边
+- 验证：`build_runner` / `flutter analyze` / `flutter test` 均通过
+
+## ✅ 第 18 步：艺术家页面
+- `lib/providers/artist_provider.dart`：从全部曲目按 `artist` 分组，生成 `Artist` 列表（含封面、曲目数）
+- `lib/screens/library/library_screen.dart`：艺术家 Tab 改为真实列表，点击后进入 `ArtistDetailScreen`
+- `lib/screens/library/artist_detail_screen.dart`：AppBar 封面 + 播放全部按钮 + 曲目列表，点击歌曲直接播放该艺术家全部曲目
+- 验证：`build_runner` / `flutter analyze` / `flutter test` 均通过
+
+## ✅ 第 19 步：歌单管理
+- 数据层：
+  - `lib/data/daos/playlist_dao.dart`：新增 `@DriftAccessor(tables: [Playlists, PlaylistTracks, Tracks])`，支持创建/重命名/删除歌单、加入/移除歌曲、查询歌单曲目、统计歌单内歌曲数
+  - `lib/data/repositories/playlist_repository.dart`：业务封装
+  - `lib/data/database/app_database.dart`：加 `playlistDao` 字段
+- 状态层：
+  - `lib/providers/database_provider.dart`：新增 `playlistRepositoryProvider`
+  - `lib/providers/playlist_provider.dart`：`playlistsProvider`、`playlistTracksProvider`
+- UI：
+  - `lib/screens/library/playlist_tab.dart`：歌单列表 + 新建/重命名/删除
+  - `lib/screens/library/playlist_detail_screen.dart`：歌单曲目列表 + 播放全部 + 左滑移除歌曲
+  - `lib/widgets/library/add_to_playlist_sheet.dart`：从歌曲库/艺术家页把歌曲加入已有歌单（或新建歌单）
+  - `lib/widgets/library/track_list_tile.dart`：加 `onAddToPlaylist` 回调，显示「加入歌单」图标
+  - `lib/widgets/common/text_input_dialog.dart`：复用的新建/重命名对话框
+- 验证：`build_runner` / `flutter analyze` / `flutter test` 均通过
+
+## ✅ 第 20 步：MiniPlayer 全局一致性 + 歌单封面 + 导入入口下移
+- 艺术家/歌单详情页底部加 `MiniPlayer`，点击歌曲后 mini player 立刻弹出，与首页一致
+  - `lib/screens/library/artist_detail_screen.dart`：body 改为 `Column[Expanded(CustomScrollView), MiniPlayer?]`，mini player 点击可进全屏播放器
+  - `lib/screens/library/playlist_detail_screen.dart`：同上
+- 歌单封面默认取第一首添加歌曲的封面
+  - `lib/data/daos/playlist_dao.dart`：`watchAllWithTrackCount()` 增加 `first_cover_path` 子查询；`PlaylistWithTrackCount` 加 `coverPath`
+  - `lib/screens/library/playlist_tab.dart`：列表项 leading 显示封面或默认图标
+  - `lib/screens/library/playlist_detail_screen.dart`：详情页 AppBar 背景也显示封面
+- 导入入口从「资料库」右上角移到底部导航栏「播放列表」与「搜索」之间
+  - `lib/screens/home/home_screen.dart`：底部导航 5 项（资料库/播放列表/导入/搜索/设置），点「导入」直接 push `ImportScreen`
+  - `lib/screens/library/library_screen.dart`：移除右上角 `+` 导入按钮和对应方法，空状态提示改为「点击底部导入按钮添加音频」
+- 验证：`build_runner` / `flutter analyze` / `flutter test` 均通过
+
+## ✅ 第 21 步：修复 mini 播放器进度 + 清理调试产物
+- 修复 `main.dart`：`JustAudioMediaKit.ensureInitialized()` 改为仅在 Windows/Linux 调用，避免破坏 macOS/iOS 原生音频后端
+- 增强 `AudioPlayerService`：新增 `_duration` 字段并订阅 `durationStream`，`duration` getter 返回最新已知值，不再在 duration 加载前返回 0
+- 重构 `MiniPlayer` 进度条：外层监听 `durationStream`、内层监听 `positionStream`，duration 加载后 slider 立即重建
+- 清理所有 `TRAE-debugger` 调试插桩代码（`_debugLog`、`.dbg/` 引用、临时测试数据）
+- 移除 `app.dart` 中自动导入测试音频/创建调试歌单/自动播放的种子逻辑
+- 删除 `.dbg/` 目录及 `debug-mini-progress-playlist-cover.md` 调试记录文件
+- 验证：`flutter analyze` 通过（仅剩 2 个预配置 assets 目录缺失警告）；`flutter test` 通过（1/1）
+
+## ✅ 第 22 步：歌单封面取第一首有封面歌曲 + 持久化测试
+- 歌单封面逻辑已在第 20 步实现，现补全边界情况并加测试
+  - `lib/data/daos/playlist_dao.dart`：`watchAllWithTrackCount()` 子查询改为 `ORDER BY position` 并跳过 `cover_path IS NULL/''`，取歌单内第一首有封面歌曲
+  - `lib/screens/library/playlist_detail_screen.dart`：AppBar 背景与列表侧栏采用同样的回退逻辑（第一首有封面歌曲）
+- 为可测试性给 `AppDatabase` 加 `@visibleForTesting` 内存构造器
+- 新增 `test/playlist_cover_test.dart`：覆盖「第一首有封面」「空歌单」「先加入无封面歌曲时回退到下一首」三种场景
+- 验证：`flutter analyze` 通过（仅 2 个预配置 assets 目录缺失警告）；`flutter test` 通过（4/4）
 
 ## ⚠️ 环境注意事项（更新到 AGENTS.md）
 - 系统没有 Rust 工具链 → 不能用 `metadata_god`，已切到 `audio_metadata_reader`（纯 Dart）
@@ -102,22 +169,36 @@ music_pocket/lib/
 ├── data/
 │   ├── database/app_database.dart, .g.dart   # Drift schema v2
 │   ├── daos/track_dao.dart, .g.dart           # @DriftAccessor
-│   ├── repositories/track_repository.dart     # 业务封装
+│   ├── daos/playlist_dao.dart, .g.dart        # 歌单相关 Drift 查询
+│   ├── repositories/track_repository.dart     # 曲目业务封装
+│   ├── repositories/playlist_repository.dart  # 歌单业务封装
 │   └── models/{track,playlist,category}.dart   # Freezed Model（名称用 Model 后缀避免与 Drift 行类冲突）
 ├── providers/
 │   ├── database_provider.dart                 # db/repo/metadata
-│   └── track_provider.dart                    # tracks/currentTrack/playMode
+│   ├── track_provider.dart                    # tracks/currentTrack/playMode
+│   ├── artist_provider.dart                 # 艺术家分组
+│   └── playlist_provider.dart               # 歌单/歌单曲目
 ├── services/
-│   ├── audio_player_service.dart              # Track-based queue + 流式状态
+│   ├── audio_player_service.dart              # Track-based queue + 流式状态 + 应用音量
 │   └── metadata_service.dart                  # audio_metadata_reader
 ├── screens/
-│   ├── home/home_screen.dart                  # 4-Tab 导航
-│   ├── library/library_screen.dart            # 歌曲+占位（待步骤 2）
+│   ├── home/home_screen.dart                  # 4-Tab 导航 + 音量/主题顶栏
+│   ├── library/library_screen.dart            # 歌曲/艺术家/歌单 Tab
+│   ├── library/artist_detail_screen.dart      # 艺术家详情/曲目
+│   ├── library/playlist_tab.dart              # 歌单列表
+│   ├── library/playlist_detail_screen.dart    # 歌单曲目
 │   ├── import/import_screen.dart              # 真实导入 + 进度
 │   └── player/player_screen.dart              # 完整播放器
 └── widgets/
     ├── common/cover_placeholder.dart          # 封面组件
-    ├── library/track_list_tile.dart           # Track 行
+    ├── common/volume_control.dart             # 顶栏音量控制
+    ├── common/text_input_dialog.dart          # 新建/重命名输入框
+    ├── library/track_list_tile.dart           # Track 行（加入歌单/编辑）
     ├── library/track_edit_sheet.dart          # 编辑面板（自定义覆盖）
+    ├── library/add_to_playlist_sheet.dart     # 加入歌单
     └── player/mini_player.dart                # MiniPlayer（实时跟当前曲目）
+
+test/
+├── widget_test.dart                           # App smoke test
+└── playlist_cover_test.dart                   # 歌单封面 DAO 测试
 ```

@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/track_provider.dart';
+import '../../widgets/common/volume_control.dart';
 import '../../widgets/player/mini_player.dart';
+import '../import/import_screen.dart';
 import '../library/library_screen.dart';
 import '../player/player_screen.dart';
 
@@ -58,9 +60,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
+        selectedIndex: _currentIndex < 2 ? _currentIndex : _currentIndex + 1,
         onDestinationSelected: (index) {
-          setState(() => _currentIndex = index);
+          if (index == 2) {
+            _openImportScreen(context);
+            return;
+          }
+          final bodyIndex = index < 2 ? index : index - 1;
+          setState(() => _currentIndex = bodyIndex);
         },
         destinations: const [
           NavigationDestination(
@@ -72,6 +79,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: Icon(Icons.playlist_play_outlined),
             selectedIcon: Icon(Icons.playlist_play),
             label: '播放列表',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.add_circle_outline),
+            selectedIcon: Icon(Icons.add_circle),
+            label: '导入',
           ),
           NavigationDestination(
             icon: Icon(Icons.search_outlined),
@@ -114,6 +126,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             const Spacer(),
+            const VolumeControl(),
+            const SizedBox(width: 4),
             IconButton(
               icon: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 180),
@@ -218,6 +232,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           );
         },
       ),
+    );
+  }
+
+  void _openImportScreen(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const ImportScreen()),
     );
   }
 }

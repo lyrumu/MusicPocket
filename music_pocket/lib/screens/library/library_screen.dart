@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/database/app_database.dart';
+import '../../providers/artist_provider.dart';
 import '../../providers/track_provider.dart';
 import '../../services/audio_player_service.dart';
+import '../../widgets/common/cover_placeholder.dart';
+import '../../widgets/library/add_to_playlist_sheet.dart';
 import '../../widgets/library/track_edit_sheet.dart';
 import '../../widgets/library/track_list_tile.dart';
-import '../import/import_screen.dart';
+import 'artist_detail_screen.dart';
+import 'playlist_tab.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -62,11 +66,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: () => _openImportScreen(context),
-                tooltip: '导入音乐',
-              ),
             ],
           ),
         ),
@@ -75,17 +74,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
             controller: _tabController,
             children: [
               _buildTracksList(tracks, currentTrack),
-              _buildPlaceholder(
-                icon: Icons.person_outline,
-                title: '艺术家',
-                subtitle: '${_uniqueCount(tracks.map((t) => t.artist))} 位艺术家',
-              ),
-              _buildPlaceholder(
-                icon: Icons.playlist_play_outlined,
-                title: '暂无歌单',
-                subtitle: '歌单创建与管理功能后续实现',
-                actionText: '敬请期待',
-              ),
+              _buildArtistsList(tracks),
+              const PlaylistTab(),
             ],
           ),
         ),
@@ -106,7 +96,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
             const SizedBox(height: 16),
             Text('暂无歌曲', style: Theme.of(context).textTheme.bodyLarge),
             const SizedBox(height: 8),
-            Text('点击右上角 + 导入音频', style: Theme.of(context).textTheme.bodySmall),
+            Text('点击底部导入按钮添加音频', style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       );
@@ -125,56 +115,71 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
             AudioPlayerService.instance.playTracks(tracks, startIndex: index);
           },
           onLongPress: () => TrackEditSheet.show(context, track),
+          onEdit: () => TrackEditSheet.show(context, track),
+          onAddToPlaylist: () => AddToPlaylistSheet.show(context, track),
         );
       },
     );
   }
 
-  Widget _buildPlaceholder({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    String? actionText,
-  }) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 64, color: Theme.of(context).colorScheme.outline),
-          const SizedBox(height: 16),
-          Text(title, style: Theme.of(context).textTheme.bodyLarge),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: Theme.of(context).textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-          if (actionText != null) ...[
-            const SizedBox(height: 12),
+  Widget _buildArtistsList(List<Track> tracks) {
+    final artists = ref.watch(artistsProvider);
+
+    if (artists.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_outline,
+              size: 64,
+              color: Theme.of(context).colorScheme.outline,
+            ),
+            const SizedBox(height: 16),
+            Text('暂无艺术家', style: Theme.of(context).textTheme.bodyLarge),
+            const SizedBox(height: 8),
             Text(
-              actionText,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+              '导入歌曲后自动按艺术家分类',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
-        ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 16),
+      itemCount: artists.length,
+      itemBuilder: (context, index) {
+        final artist = artists[index];
+        return ListTile(
+          leading: CoverImage(
+            coverPath: artist.coverPath,
+            seed: artist.name,
+            size: 48,
+          ),
+          title: Text(
+            artist.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(
+            '${artist.tracks.length} 首歌曲',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _openArtistDetail(context, artist.name),
+        );
+      },
+    );
+  }
+
+  void _openArtistDetail(BuildContext context, String artistName) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ArtistDetailScreen(artistName: artistName),
       ),
     );
   }
 
-  int _uniqueCount(Iterable<String> values) {
-    final set = <String>{};
-    for (final v in values) {
-      final trimmed = v.trim();
-      if (trimmed.isNotEmpty) set.add(trimmed);
-    }
-    return set.length;
-  }
-
-  void _openImportScreen(BuildContext context) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const ImportScreen()));
-  }
 }
