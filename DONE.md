@@ -1,6 +1,7 @@
 # 完成清单
 置顶信息：
 1.构建命令提示：cd music_pocket && flutter run -d macos
+2.每次更新项目后 在此记录的内容应尽量精简 根据实际更新代码量调整
 
 ## ✅ 第 1 步：编译基础设施
 - 补 `pubspec.yaml` 依赖：`freezed_annotation`、`json_annotation`、`freezed`、`json_serializable`、`audio_metadata_reader`（替换 `on_audio_query`）
@@ -150,6 +151,40 @@
 - 为可测试性给 `AppDatabase` 加 `@visibleForTesting` 内存构造器
 - 新增 `test/playlist_cover_test.dart`：覆盖「第一首有封面」「空歌单」「先加入无封面歌曲时回退到下一首」三种场景
 - 验证：`flutter analyze` 通过（仅 2 个预配置 assets 目录缺失警告）；`flutter test` 通过（4/4）
+
+## ✅ 第 23 步：歌单/艺术家歌曲数实时匹配资料库
+- 需求：资料库中的歌曲被删除后，歌单与艺术家显示的曲目数必须实时反映当前资料库，不能卡在旧数字
+- 实现：
+  - `lib/data/daos/playlist_dao.dart`：`watchAllWithTrackCount()` 的统计 SQL 改为 `COUNT(t.id)` 并 `LEFT JOIN tracks t`，只计算仍存在于资料库中的歌曲；空歌单仍保留并显示 "0 首歌曲"
+  - `lib/data/daos/track_dao.dart`：`deleteTrack()` 级联删除 `playlist_tracks` 中引用该曲目的关联记录，避免遗留孤儿数据
+  - `lib/providers/artist_provider.dart`：艺术家分组已基于 `tracksProvider` 实时计算，曲目数自然随资料库变化；艺术家所有歌曲被删后自动从列表移除
+- 验证：`build_runner` / `flutter analyze` 通过（仅 2 个预配置 assets 目录缺失警告）；`flutter test` 通过（4/4）
+
+## ✅ 第 24 步：点击正在播放的歌曲切换暂停/继续
+- 需求：在歌曲列表/艺术家列表/歌单中点击当前正在播放的歌曲时，应暂停；再次点击则继续播放，而不是从头播放
+- 实现：
+  - `lib/services/audio_player_service.dart`：`playTracks()` 增加 `toggleIfCurrent` 参数（默认 `true`）。若目标曲目 id 与当前播放曲目相同，调用 `togglePlay()` 切换播放/暂停；否则按原逻辑加载并播放
+  - `lib/screens/library/artist_detail_screen.dart`：「播放全部」调用 `playTracks(..., toggleIfCurrent: false)`，确保点击播放全部时始终从头播放该艺术家曲目
+  - `lib/screens/library/playlist_detail_screen.dart`：「播放全部」同样传入 `toggleIfCurrent: false`
+- 验证：`build_runner` / `flutter analyze` 通过（仅 2 个预配置 assets 目录缺失警告）；`flutter test` 通过（4/4）
+
+## ✅ 第 25 步：设置页加入清除缓存功能
+- 需求：检查产品使用过程中是否会产生缓存，若有则在设置中加入清除缓存功能并写明提示
+- 分析：本地音乐播放器运行中主要产生以下可清理缓存
+  - 应用缓存目录（`getApplicationCacheDirectory()`）中的临时文件
+  - Flutter 图片缓存（内存）
+  - just_audio 播放缓冲（通过停止播放器释放）
+  - 已导入的歌曲、封面、数据库、歌单数据属于用户资料，不会被清除
+- 实现：
+  - 新增 `lib/services/cache_service.dart`：单例 `CacheService`，提供 `clearCache()`
+    - 停止播放器释放音频缓冲
+    - 清空 Flutter `imageCache`
+    - 递归清理应用缓存目录内容并统计释放字节数
+    - 提供 `formatSize()` 用于友好显示
+  - `lib/screens/home/home_screen.dart`：设置页（`_buildSettingsPage`）新增「清除缓存」列表项
+    - 点击弹出确认对话框，提示"将清除临时缓存（播放缓冲、图片缓存等），不会删除已导入的歌曲、歌单和设置"
+    - 确认后调用 `CacheService.clearCache()`，完成后通过 SnackBar 显示释放空间或失败提示
+- 验证：`build_runner` / `flutter analyze` 通过（仅 2 个预配置 assets 目录缺失警告）；`flutter test` 通过（4/4）
 
 ## ⚠️ 环境注意事项（更新到 AGENTS.md）
 - 系统没有 Rust 工具链 → 不能用 `metadata_god`，已切到 `audio_metadata_reader`（纯 Dart）

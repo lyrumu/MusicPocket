@@ -129,7 +129,19 @@ class AudioPlayerService {
     _currentTrackController.add(currentTrack);
   }
 
-  Future<void> playTracks(List<Track> tracks, {int startIndex = 0}) async {
+  Future<void> playTracks(
+    List<Track> tracks, {
+    int startIndex = 0,
+    bool toggleIfCurrent = true,
+  }) async {
+    final targetIndex = startIndex.clamp(0, tracks.length - 1);
+    final targetTrack = tracks.isEmpty ? null : tracks[targetIndex];
+    if (toggleIfCurrent &&
+        targetTrack != null &&
+        currentTrack?.id == targetTrack.id) {
+      await togglePlay();
+      return;
+    }
     setQueue(tracks, startIndex: startIndex);
     final t = currentTrack;
     if (t != null) {

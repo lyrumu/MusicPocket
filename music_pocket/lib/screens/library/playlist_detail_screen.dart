@@ -145,7 +145,10 @@ class PlaylistDetailScreen extends ConsumerWidget {
   void _playAll(BuildContext context, WidgetRef ref) {
     final tracks = ref.read(playlistTracksProvider(playlist.id)).asData?.value ?? [];
     if (tracks.isEmpty) return;
-    AudioPlayerService.instance.playTracks(tracks);
+    AudioPlayerService.instance.playTracks(
+      tracks,
+      toggleIfCurrent: false,
+    );
   }
 
   Future<void> _removeTrack(WidgetRef ref, Track track) async {

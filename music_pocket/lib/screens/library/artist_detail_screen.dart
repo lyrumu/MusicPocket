@@ -115,7 +115,10 @@ class ArtistDetailScreen extends ConsumerWidget {
 
   void _playArtist(BuildContext context, Artist artist) {
     if (artist.tracks.isEmpty) return;
-    AudioPlayerService.instance.playTracks(artist.tracks);
+    AudioPlayerService.instance.playTracks(
+      artist.tracks,
+      toggleIfCurrent: false,
+    );
   }
 
   void _openFullPlayer(BuildContext context) {

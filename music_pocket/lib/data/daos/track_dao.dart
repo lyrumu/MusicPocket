@@ -66,7 +66,10 @@ class TrackDao extends DatabaseAccessor<AppDatabase> with _$TrackDaoMixin {
     return update(_tbl).replace(track);
   }
 
-  Future<int> deleteTrack(int id) {
+  Future<int> deleteTrack(int id) async {
+    await (delete(attachedDatabase.playlistTracks)
+          ..where((pt) => pt.trackId.equals(id)))
+        .go();
     return (delete(_tbl)..where((t) => t.id.equals(id))).go();
   }
 

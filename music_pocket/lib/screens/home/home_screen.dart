@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/track_provider.dart';
+import '../../services/cache_service.dart';
 import '../../widgets/common/volume_control.dart';
 import '../../widgets/player/mini_player.dart';
 import '../import/import_screen.dart';
@@ -205,6 +206,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Text('设置', style: theme.textTheme.headlineMedium),
           const SizedBox(height: 24),
           ListTile(
+            title: const Text('清除缓存'),
+            subtitle: const Text('清理临时文件与播放缓冲'),
+            leading: const Icon(Icons.cleaning_services_outlined),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showClearCacheDialog(context),
+          ),
+          ListTile(
             title: const Text('关于'),
             subtitle: const Text('Music Pocket v1.0.0'),
             leading: const Icon(Icons.info_outline),
@@ -212,6 +220,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showClearCacheDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('清除缓存'),
+        content: const Text(
+          '此操作将清除应用运行过程中产生的临时缓存（如播放缓冲、图片缓存等），不会删除已导入的歌曲、歌单和设置。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('清除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final result = await CacheService.instance.clearCache();
+    if (!context.mounted) return;
+
+    final message = result.success
+        ? '已清除缓存，释放 ${CacheService.instance.formatSize(result.freedBytes)} 空间'
+        : '清除缓存失败，请稍后重试';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 

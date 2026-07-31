@@ -22,13 +22,15 @@ class PlaylistDao extends DatabaseAccessor<AppDatabase> with _$PlaylistDaoMixin 
 
   Stream<List<PlaylistWithTrackCount>> watchAllWithTrackCount() {
     final query = customSelect(
-      'SELECT p.*, COUNT(pt.id) AS track_count, '
+      'SELECT p.*, COUNT(t.id) AS track_count, '
       '(SELECT t.cover_path FROM playlist_tracks pt2 '
       'JOIN tracks t ON pt2.track_id = t.id '
       'WHERE pt2.playlist_id = p.id '
       'AND t.cover_path IS NOT NULL AND t.cover_path != \'\' '
       'ORDER BY pt2.position ASC LIMIT 1) AS first_cover_path '
-      'FROM playlists p LEFT JOIN playlist_tracks pt ON p.id = pt.playlist_id '
+      'FROM playlists p '
+      'LEFT JOIN playlist_tracks pt ON p.id = pt.playlist_id '
+      'LEFT JOIN tracks t ON pt.track_id = t.id '
       'GROUP BY p.id ORDER BY p.name COLLATE NOCASE',
       readsFrom: {_playlists, _playlistTracks, _tracks},
     );
