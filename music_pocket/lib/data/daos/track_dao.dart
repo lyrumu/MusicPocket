@@ -47,6 +47,22 @@ class TrackDao extends DatabaseAccessor<AppDatabase> with _$TrackDaoMixin {
     return (select(_tbl)..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
+  Future<List<Track>> getAll() {
+    return (select(
+      _tbl,
+    )..orderBy([(t) => OrderingTerm(expression: t.title)])).get();
+  }
+
+  Future<List<Track>> getByIds(List<int> ids) async {
+    if (ids.isEmpty) return [];
+    final idSet = ids.whereType<int>().toSet();
+    final rows = await (select(_tbl)
+          ..where((t) => t.id.isIn(idSet))
+          ..orderBy([(t) => OrderingTerm(expression: t.title)])).get();
+    final byId = {for (final r in rows) r.id: r};
+    return ids.where((id) => byId.containsKey(id)).map((id) => byId[id]!).toList();
+  }
+
   Future<Track?> getByFilePath(String filePath) {
     return (select(
       _tbl,

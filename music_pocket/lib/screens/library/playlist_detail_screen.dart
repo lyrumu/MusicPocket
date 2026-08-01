@@ -9,6 +9,7 @@ import '../../providers/track_provider.dart';
 import '../../services/audio_player_service.dart';
 import '../../widgets/common/cover_placeholder.dart';
 import '../../widgets/library/track_list_tile.dart';
+import '../../widgets/library/track_quick_actions.dart';
 import '../../widgets/player/mini_player.dart';
 import '../player/player_screen.dart';
 
@@ -99,7 +100,8 @@ class PlaylistDetailScreen extends ConsumerWidget {
                               track: track,
                               isPlaying: isCurrent,
                               onTap: () => _playTrack(context, loadedTracks, track),
-                              onLongPress: () {},
+                              onLongPress: () => TrackQuickActions.show(context, track),
+                              onPlayNext: () => AudioPlayerService.instance.playNextTrack(track),
                               onEdit: null,
                             ),
                           );
@@ -136,7 +138,8 @@ class PlaylistDetailScreen extends ConsumerWidget {
     List<Track> tracks,
     Track track,
   ) {
-    AudioPlayerService.instance.playTracks(
+    AudioPlayerService.instance.playFromPlaylist(
+      playlist.id,
       tracks,
       startIndex: tracks.indexOf(track),
     );
@@ -145,7 +148,8 @@ class PlaylistDetailScreen extends ConsumerWidget {
   void _playAll(BuildContext context, WidgetRef ref) {
     final tracks = ref.read(playlistTracksProvider(playlist.id)).asData?.value ?? [];
     if (tracks.isEmpty) return;
-    AudioPlayerService.instance.playTracks(
+    AudioPlayerService.instance.playFromPlaylist(
+      playlist.id,
       tracks,
       toggleIfCurrent: false,
     );

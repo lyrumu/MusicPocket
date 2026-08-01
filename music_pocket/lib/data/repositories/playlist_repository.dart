@@ -26,4 +26,6 @@ class PlaylistRepository {
   Stream<List<Track>> watchPlaylistTracks(int playlistId) =>
       _dao.watchPlaylistTracks(playlistId);
 
+  Future<List<int>> getTrackIds(int playlistId) => _dao.getTrackIds(playlistId);
+
 }

@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../providers/track_provider.dart';
 import '../../services/audio_player_service.dart';
 import '../common/cover_placeholder.dart';
+import 'play_queue_sheet.dart';
 
 class MiniPlayer extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
@@ -215,9 +216,19 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           iconSize: 18,
+          icon: const Icon(Icons.queue_music_rounded),
+          color: Theme.of(context).colorScheme.primary,
+          tooltip: '播放列表',
+          onPressed: () => PlayQueueSheet.show(context),
+        ),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          iconSize: 18,
           icon: const Icon(Icons.close_rounded),
           color: Theme.of(context).colorScheme.outline,
-          onPressed: () => audioService.stopAndClear(),
+          onPressed: () => audioService.stopPlayback(),
           tooltip: '关闭播放器',
         ),
       ],

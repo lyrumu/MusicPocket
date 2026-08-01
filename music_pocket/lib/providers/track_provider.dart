@@ -39,3 +39,14 @@ final playModeProvider = StreamProvider<PlayMode>((ref) {
   });
   return controller.stream;
 });
+
+final playQueueProvider = StreamProvider<PlayQueueSnapshot>((ref) {
+  final controller = StreamController<PlayQueueSnapshot>();
+  controller.add(AudioPlayerService.instance.queue);
+  final sub = AudioPlayerService.instance.queueStream.listen(controller.add);
+  ref.onDispose(() {
+    sub.cancel();
+    controller.close();
+  });
+  return controller.stream;
+});

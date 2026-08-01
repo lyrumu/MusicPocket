@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../providers/database_provider.dart';
 import '../../providers/track_provider.dart';
 import '../../services/audio_player_service.dart';
 import '../../widgets/common/cover_placeholder.dart';
+import '../../widgets/player/play_queue_sheet.dart';
 
 class PlayerScreen extends ConsumerWidget {
   const PlayerScreen({super.key});
@@ -59,8 +59,6 @@ class PlayerScreen extends ConsumerWidget {
                         const SizedBox(height: 16),
                         _buildControls(context, ref, audioService, currentTrack),
                         const SizedBox(height: 32),
-                        _buildBottomActions(context, ref, currentTrack),
-                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -83,14 +81,17 @@ class PlayerScreen extends ConsumerWidget {
             onPressed: () => Navigator.of(context).pop(),
           ),
           const Spacer(),
-          Column(
-            children: [
-              Text('正在播放', style: Theme.of(context).textTheme.bodySmall),
-              Text('播放列表', style: Theme.of(context).textTheme.titleMedium),
-            ],
+          GestureDetector(
+            onTap: () => PlayQueueSheet.show(context),
+            child: Column(
+              children: [
+                Text('正在播放', style: Theme.of(context).textTheme.bodySmall),
+                Text('播放列表', style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
           ),
           const Spacer(),
-          IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
+          const SizedBox(width: 48),
         ],
       ),
     );
@@ -289,45 +290,6 @@ class PlayerScreen extends ConsumerWidget {
             onPressed: audioService.playNext,
           ),
           const SizedBox(width: 12),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomActions(
-    BuildContext context,
-    WidgetRef ref,
-    currentTrack,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 48),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            icon: Icon(
-              currentTrack?.isFavorite == true
-                  ? Icons.favorite
-                  : Icons.favorite_border,
-              color: currentTrack?.isFavorite == true
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
-            ),
-            onPressed: currentTrack == null
-                ? null
-                : () async {
-                    final repo = ref.read(trackRepositoryProvider);
-                    await repo.toggleFavorite(
-                      currentTrack.id,
-                      !currentTrack.isFavorite,
-                    );
-                  },
-          ),
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: currentTrack == null ? null : () {},
-          ),
-          IconButton(icon: const Icon(Icons.queue_music), onPressed: () {}),
         ],
       ),
     );

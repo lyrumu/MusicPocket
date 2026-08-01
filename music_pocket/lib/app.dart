@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
@@ -16,13 +17,30 @@ class MusicPocketApp extends ConsumerStatefulWidget {
   ConsumerState<MusicPocketApp> createState() => _MusicPocketAppState();
 }
 
-class _MusicPocketAppState extends ConsumerState<MusicPocketApp> {
+class _MusicPocketAppState extends ConsumerState<MusicPocketApp>
+    with WidgetsBindingObserver {
   StreamSubscription? _trackSub;
+
+  final Map<ShortcutActivator, Intent> _shortcuts = {
+    ...WidgetsApp.defaultShortcuts,
+    const SingleActivator(LogicalKeyboardKey.arrowLeft): const DoNothingAndStopPropagationIntent(),
+    const SingleActivator(LogicalKeyboardKey.arrowRight): const DoNothingAndStopPropagationIntent(),
+    const SingleActivator(LogicalKeyboardKey.arrowUp): const DoNothingAndStopPropagationIntent(),
+    const SingleActivator(LogicalKeyboardKey.arrowDown): const DoNothingAndStopPropagationIntent(),
+    const SingleActivator(LogicalKeyboardKey.space): const DoNothingAndStopPropagationIntent(),
+  };
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     ref.read(appDatabaseProvider);
+    unawaited(
+      AudioPlayerService.instance.init(
+        ref.read(trackRepositoryProvider),
+        ref.read(playlistRepositoryProvider),
+      ),
+    );
     _trackSub = AudioPlayerService.instance.currentTrackStream.listen((
       track,
     ) async {
@@ -33,7 +51,17 @@ class _MusicPocketAppState extends ConsumerState<MusicPocketApp> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      unawaited(AudioPlayerService.instance.persistNow());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _trackSub?.cancel();
     super.dispose();
   }
@@ -47,6 +75,7 @@ class _MusicPocketAppState extends ConsumerState<MusicPocketApp> {
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+      shortcuts: _shortcuts,
       home: const HomeScreen(),
     );
   }

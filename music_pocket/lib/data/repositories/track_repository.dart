@@ -26,6 +26,12 @@ class TrackRepository {
 
   Future<List<Track>> search(String query) => _dao.search(query);
 
+  Future<Track?> getById(int id) => _dao.getById(id);
+
+  Future<List<Track>> getAll() => _dao.getAll();
+
+  Future<List<Track>> getByIds(List<int> ids) => _dao.getByIds(ids);
+
   Future<Track?> getByFilePath(String filePath) => _dao.getByFilePath(filePath);
 
   Future<List<String>> getAllFilePaths() => _dao.getAllFilePaths();

@@ -9,6 +9,7 @@ import '../../widgets/common/cover_placeholder.dart';
 import '../../widgets/library/add_to_playlist_sheet.dart';
 import '../../widgets/library/track_edit_sheet.dart';
 import '../../widgets/library/track_list_tile.dart';
+import '../../widgets/library/track_quick_actions.dart';
 import 'artist_detail_screen.dart';
 import 'playlist_tab.dart';
 
@@ -114,7 +115,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
           onTap: () {
             AudioPlayerService.instance.playTracks(tracks, startIndex: index);
           },
-          onLongPress: () => TrackEditSheet.show(context, track),
+          onLongPress: () => TrackQuickActions.show(context, track),
+          onPlayNext: () => AudioPlayerService.instance.playNextTrack(track),
           onEdit: () => TrackEditSheet.show(context, track),
           onAddToPlaylist: () => AddToPlaylistSheet.show(context, track),
         );
@@ -181,5 +183,4 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
       ),
     );
   }
-
 }

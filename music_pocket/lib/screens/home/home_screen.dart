@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/track_provider.dart';
+import '../../services/audio_player_service.dart';
 import '../../services/cache_service.dart';
 import '../../widgets/common/volume_control.dart';
 import '../../widgets/player/mini_player.dart';
 import '../import/import_screen.dart';
 import '../library/library_screen.dart';
+import '../player/play_queue_screen.dart';
 import '../player/player_screen.dart';
+import '../search/search_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +24,48 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    super.dispose();
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+
+    if (event.logicalKey == LogicalKeyboardKey.space) {
+      if (_isTextFieldFocused()) return false;
+      AudioPlayerService.instance.togglePlay();
+      return true;
+    }
+
+    if (HardwareKeyboard.instance.isMetaPressed) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+        AudioPlayerService.instance.playPrevious();
+        return true;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        AudioPlayerService.instance.playNext();
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool _isTextFieldFocused() {
+    final focus = FocusManager.instance.primaryFocus;
+    if (focus == null) return false;
+    final widget = focus.context?.widget;
+    return widget is EditableText;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,46 +201,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       case 0:
         return const LibraryScreen();
       case 1:
-        return _buildPlaceholder(
-          icon: Icons.playlist_play_outlined,
-          title: '播放列表',
-          subtitle: '歌单功能后续实现',
-        );
+        return const PlayQueueScreen();
       case 2:
-        return _buildPlaceholder(
-          icon: Icons.search_outlined,
-          title: '搜索',
-          subtitle: '搜歌功能后续实现',
-        );
+        return const SearchScreen();
       case 3:
         return _buildSettingsPage();
       default:
         return const LibraryScreen();
     }
-  }
-
-  Widget _buildPlaceholder({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 64, color: theme.colorScheme.outline),
-          const SizedBox(height: 16),
-          Text(title, style: theme.textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: theme.textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildSettingsPage() {
