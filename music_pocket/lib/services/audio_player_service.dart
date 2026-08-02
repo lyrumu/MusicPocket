@@ -38,11 +38,7 @@ class _SourceDesc {
   final String? name;
   final int? playlistId;
 
-  const _SourceDesc({
-    this.kind = _SourceKind.none,
-    this.name,
-    this.playlistId,
-  });
+  const _SourceDesc({this.kind = _SourceKind.none, this.name, this.playlistId});
 
   bool get isEmpty => kind == _SourceKind.none;
 }
@@ -114,14 +110,15 @@ class AudioPlayerService {
   AudioPlayer get player => _player;
   Track? get currentTrack => _current;
   PlayMode get playMode => _playMode;
-  List<Track> get upNextTracks => List.unmodifiable(_upNext.map((e) => e.track));
+  List<Track> get upNextTracks =>
+      List.unmodifiable(_upNext.map((e) => e.track));
 
   PlayQueueSnapshot get queue => PlayQueueSnapshot(
-        current: _current,
-        upNext: _upNext
-            .map((e) => PlayQueueItem(e.track, manual: e.manual))
-            .toList(growable: false),
-      );
+    current: _current,
+    upNext: _upNext
+        .map((e) => PlayQueueItem(e.track, manual: e.manual))
+        .toList(growable: false),
+  );
 
   Stream<Track?> get currentTrackStream => _currentTrackController.stream;
   Stream<PlayMode> get playModeStream => _playModeController.stream;
@@ -149,6 +146,7 @@ class AudioPlayerService {
 
   Future<void> loadAndPlay(String filePath, {bool autoPlay = true}) async {
     try {
+      _duration = Duration.zero;
       await _player
           .setFilePath(filePath)
           .timeout(
@@ -180,8 +178,16 @@ class AudioPlayerService {
   Future<void> stop() async => _player.stop();
 
   Future<void> seek(Duration position) async {
-    await _player.seek(position);
-    _positionMs = position.inMilliseconds;
+    try {
+      await _player.seek(position);
+      _positionMs = _player.position.inMilliseconds;
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[AudioPlayerService] ERROR seeking to $position');
+        debugPrint('[AudioPlayerService] $e');
+        debugPrint('[AudioPlayerService] $st');
+      }
+    }
   }
 
   Future<void> setVolume(double value) async {
@@ -220,6 +226,49 @@ class AudioPlayerService {
       _emitQueue();
       unawaited(persistNow());
     }
+  }
+
+  Future<void> prepareTrackDeletion(int trackId) async {
+    if (_current?.id == trackId) {
+      await _player.stop();
+    }
+  }
+
+  Future<void> completeTrackDeletion(int trackId) async {
+    final wasCurrent = _current?.id == trackId;
+    final currentSourceIndex = _source.indexWhere(
+      (track) => track.id == trackId,
+    );
+
+    _upNext.removeWhere((entry) => entry.id == trackId);
+    _history.removeWhere((entry) => entry.trackId == trackId);
+    _shuffleRecent.remove(trackId);
+
+    if (currentSourceIndex >= 0) {
+      _source.removeAt(currentSourceIndex);
+      if (currentSourceIndex <= _lastSourceIndex) {
+        _lastSourceIndex--;
+      }
+    }
+    if (_source.isEmpty) {
+      _lastSourceIndex = -1;
+      _sourceDesc = const _SourceDesc();
+    } else {
+      _lastSourceIndex = _lastSourceIndex.clamp(-1, _source.length - 1);
+    }
+
+    if (!wasCurrent) {
+      _emitQueue();
+      _schedulePersist();
+      return;
+    }
+
+    _current = null;
+    _positionMs = 0;
+    _emitCurrent();
+    _emitQueue();
+    await _advance(ignoreOneRepeat: true);
+    _schedulePersist();
   }
 
   Future<void> playTracks(
@@ -440,8 +489,7 @@ class AudioPlayerService {
       final t = _source.first;
       return _QEntry(t, manual: false, sourceIndex: 0);
     }
-    final currentInSource =
-        _current == null ? -1 : _source.indexOf(_current!);
+    final currentInSource = _current == null ? -1 : _source.indexOf(_current!);
     final base = currentInSource >= 0 ? currentInSource : _lastSourceIndex;
     int idx;
     final currentId = _current?.id;
@@ -615,8 +663,10 @@ class AudioPlayerService {
           if (_sourceDesc.playlistId != null)
             'playlistId': _sourceDesc.playlistId,
         },
-        'manual':
-            _upNext.where((e) => e.manual).map((e) => e.id).toList(growable: false),
+        'manual': _upNext
+            .where((e) => e.manual)
+            .map((e) => e.id)
+            .toList(growable: false),
         'playMode': _playMode.name,
         'history': _history
             .map((e) => {'id': e.trackId, 's': e.sourceIndex})
@@ -663,9 +713,7 @@ class AudioPlayerService {
           sourceTracks = all
               .where(
                 (t) =>
-                    (t.artist.trim().isEmpty
-                        ? '未知艺术家'
-                        : t.artist.trim()) ==
+                    (t.artist.trim().isEmpty ? '未知艺术家' : t.artist.trim()) ==
                     name,
               )
               .toList();
@@ -695,8 +743,9 @@ class AudioPlayerService {
       if (cur == null) _lastSourceIndex = _source.isEmpty ? -1 : 0;
 
       _upNext.clear();
-      final manualIds =
-          ((map['manual'] as List?) ?? []).map((e) => (e as num).toInt()).toList();
+      final manualIds = ((map['manual'] as List?) ?? [])
+          .map((e) => (e as num).toInt())
+          .toList();
       if (manualIds.isNotEmpty) {
         final tracks = await _trackRepo!.getByIds(manualIds);
         for (final t in tracks) {
@@ -707,10 +756,9 @@ class AudioPlayerService {
       _history.clear();
       for (final e in (map['history'] as List?) ?? []) {
         final m = (e as Map).cast<String, dynamic>();
-        _history.add(_HistoryEntry(
-          (m['id'] as num).toInt(),
-          (m['s'] as num).toInt(),
-        ));
+        _history.add(
+          _HistoryEntry((m['id'] as num).toInt(), (m['s'] as num).toInt()),
+        );
       }
 
       _shuffleRecent.clear();

@@ -104,6 +104,29 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _originalCoverPathMeta = const VerificationMeta(
+    'originalCoverPath',
+  );
+  @override
+  late final GeneratedColumn<String> originalCoverPath =
+      GeneratedColumn<String>(
+        'original_cover_path',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _customCoverPathMeta = const VerificationMeta(
+    'customCoverPath',
+  );
+  @override
+  late final GeneratedColumn<String> customCoverPath = GeneratedColumn<String>(
+    'custom_cover_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _filePathMeta = const VerificationMeta(
     'filePath',
   );
@@ -115,6 +138,17 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _contentHashMeta = const VerificationMeta(
+    'contentHash',
+  );
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+    'content_hash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _fileTypeMeta = const VerificationMeta(
     'fileType',
@@ -255,7 +289,10 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
     year,
     durationMs,
     coverPath,
+    originalCoverPath,
+    customCoverPath,
     filePath,
+    contentHash,
     fileType,
     bitrate,
     sampleRate,
@@ -336,6 +373,24 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
         coverPath.isAcceptableOrUnknown(data['cover_path']!, _coverPathMeta),
       );
     }
+    if (data.containsKey('original_cover_path')) {
+      context.handle(
+        _originalCoverPathMeta,
+        originalCoverPath.isAcceptableOrUnknown(
+          data['original_cover_path']!,
+          _originalCoverPathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('custom_cover_path')) {
+      context.handle(
+        _customCoverPathMeta,
+        customCoverPath.isAcceptableOrUnknown(
+          data['custom_cover_path']!,
+          _customCoverPathMeta,
+        ),
+      );
+    }
     if (data.containsKey('file_path')) {
       context.handle(
         _filePathMeta,
@@ -343,6 +398,15 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
       );
     } else if (isInserting) {
       context.missing(_filePathMeta);
+    }
+    if (data.containsKey('content_hash')) {
+      context.handle(
+        _contentHashMeta,
+        contentHash.isAcceptableOrUnknown(
+          data['content_hash']!,
+          _contentHashMeta,
+        ),
+      );
     }
     if (data.containsKey('file_type')) {
       context.handle(
@@ -463,10 +527,22 @@ class $TracksTable extends Tracks with TableInfo<$TracksTable, Track> {
         DriftSqlType.string,
         data['${effectivePrefix}cover_path'],
       ),
+      originalCoverPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}original_cover_path'],
+      ),
+      customCoverPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}custom_cover_path'],
+      ),
       filePath: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}file_path'],
       )!,
+      contentHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_hash'],
+      ),
       fileType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}file_type'],
@@ -530,7 +606,10 @@ class Track extends DataClass implements Insertable<Track> {
   final int? year;
   final int durationMs;
   final String? coverPath;
+  final String? originalCoverPath;
+  final String? customCoverPath;
   final String filePath;
+  final String? contentHash;
   final String? fileType;
   final int? bitrate;
   final int? sampleRate;
@@ -552,7 +631,10 @@ class Track extends DataClass implements Insertable<Track> {
     this.year,
     required this.durationMs,
     this.coverPath,
+    this.originalCoverPath,
+    this.customCoverPath,
     required this.filePath,
+    this.contentHash,
     this.fileType,
     this.bitrate,
     this.sampleRate,
@@ -581,7 +663,16 @@ class Track extends DataClass implements Insertable<Track> {
     if (!nullToAbsent || coverPath != null) {
       map['cover_path'] = Variable<String>(coverPath);
     }
+    if (!nullToAbsent || originalCoverPath != null) {
+      map['original_cover_path'] = Variable<String>(originalCoverPath);
+    }
+    if (!nullToAbsent || customCoverPath != null) {
+      map['custom_cover_path'] = Variable<String>(customCoverPath);
+    }
     map['file_path'] = Variable<String>(filePath);
+    if (!nullToAbsent || contentHash != null) {
+      map['content_hash'] = Variable<String>(contentHash);
+    }
     if (!nullToAbsent || fileType != null) {
       map['file_type'] = Variable<String>(fileType);
     }
@@ -623,7 +714,16 @@ class Track extends DataClass implements Insertable<Track> {
       coverPath: coverPath == null && nullToAbsent
           ? const Value.absent()
           : Value(coverPath),
+      originalCoverPath: originalCoverPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalCoverPath),
+      customCoverPath: customCoverPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customCoverPath),
       filePath: Value(filePath),
+      contentHash: contentHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contentHash),
       fileType: fileType == null && nullToAbsent
           ? const Value.absent()
           : Value(fileType),
@@ -667,7 +767,12 @@ class Track extends DataClass implements Insertable<Track> {
       year: serializer.fromJson<int?>(json['year']),
       durationMs: serializer.fromJson<int>(json['durationMs']),
       coverPath: serializer.fromJson<String?>(json['coverPath']),
+      originalCoverPath: serializer.fromJson<String?>(
+        json['originalCoverPath'],
+      ),
+      customCoverPath: serializer.fromJson<String?>(json['customCoverPath']),
       filePath: serializer.fromJson<String>(json['filePath']),
+      contentHash: serializer.fromJson<String?>(json['contentHash']),
       fileType: serializer.fromJson<String?>(json['fileType']),
       bitrate: serializer.fromJson<int?>(json['bitrate']),
       sampleRate: serializer.fromJson<int?>(json['sampleRate']),
@@ -694,7 +799,10 @@ class Track extends DataClass implements Insertable<Track> {
       'year': serializer.toJson<int?>(year),
       'durationMs': serializer.toJson<int>(durationMs),
       'coverPath': serializer.toJson<String?>(coverPath),
+      'originalCoverPath': serializer.toJson<String?>(originalCoverPath),
+      'customCoverPath': serializer.toJson<String?>(customCoverPath),
       'filePath': serializer.toJson<String>(filePath),
+      'contentHash': serializer.toJson<String?>(contentHash),
       'fileType': serializer.toJson<String?>(fileType),
       'bitrate': serializer.toJson<int?>(bitrate),
       'sampleRate': serializer.toJson<int?>(sampleRate),
@@ -719,7 +827,10 @@ class Track extends DataClass implements Insertable<Track> {
     Value<int?> year = const Value.absent(),
     int? durationMs,
     Value<String?> coverPath = const Value.absent(),
+    Value<String?> originalCoverPath = const Value.absent(),
+    Value<String?> customCoverPath = const Value.absent(),
     String? filePath,
+    Value<String?> contentHash = const Value.absent(),
     Value<String?> fileType = const Value.absent(),
     Value<int?> bitrate = const Value.absent(),
     Value<int?> sampleRate = const Value.absent(),
@@ -741,7 +852,14 @@ class Track extends DataClass implements Insertable<Track> {
     year: year.present ? year.value : this.year,
     durationMs: durationMs ?? this.durationMs,
     coverPath: coverPath.present ? coverPath.value : this.coverPath,
+    originalCoverPath: originalCoverPath.present
+        ? originalCoverPath.value
+        : this.originalCoverPath,
+    customCoverPath: customCoverPath.present
+        ? customCoverPath.value
+        : this.customCoverPath,
     filePath: filePath ?? this.filePath,
+    contentHash: contentHash.present ? contentHash.value : this.contentHash,
     fileType: fileType.present ? fileType.value : this.fileType,
     bitrate: bitrate.present ? bitrate.value : this.bitrate,
     sampleRate: sampleRate.present ? sampleRate.value : this.sampleRate,
@@ -769,7 +887,16 @@ class Track extends DataClass implements Insertable<Track> {
           ? data.durationMs.value
           : this.durationMs,
       coverPath: data.coverPath.present ? data.coverPath.value : this.coverPath,
+      originalCoverPath: data.originalCoverPath.present
+          ? data.originalCoverPath.value
+          : this.originalCoverPath,
+      customCoverPath: data.customCoverPath.present
+          ? data.customCoverPath.value
+          : this.customCoverPath,
       filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      contentHash: data.contentHash.present
+          ? data.contentHash.value
+          : this.contentHash,
       fileType: data.fileType.present ? data.fileType.value : this.fileType,
       bitrate: data.bitrate.present ? data.bitrate.value : this.bitrate,
       sampleRate: data.sampleRate.present
@@ -806,7 +933,10 @@ class Track extends DataClass implements Insertable<Track> {
           ..write('year: $year, ')
           ..write('durationMs: $durationMs, ')
           ..write('coverPath: $coverPath, ')
+          ..write('originalCoverPath: $originalCoverPath, ')
+          ..write('customCoverPath: $customCoverPath, ')
           ..write('filePath: $filePath, ')
+          ..write('contentHash: $contentHash, ')
           ..write('fileType: $fileType, ')
           ..write('bitrate: $bitrate, ')
           ..write('sampleRate: $sampleRate, ')
@@ -833,7 +963,10 @@ class Track extends DataClass implements Insertable<Track> {
     year,
     durationMs,
     coverPath,
+    originalCoverPath,
+    customCoverPath,
     filePath,
+    contentHash,
     fileType,
     bitrate,
     sampleRate,
@@ -859,7 +992,10 @@ class Track extends DataClass implements Insertable<Track> {
           other.year == this.year &&
           other.durationMs == this.durationMs &&
           other.coverPath == this.coverPath &&
+          other.originalCoverPath == this.originalCoverPath &&
+          other.customCoverPath == this.customCoverPath &&
           other.filePath == this.filePath &&
+          other.contentHash == this.contentHash &&
           other.fileType == this.fileType &&
           other.bitrate == this.bitrate &&
           other.sampleRate == this.sampleRate &&
@@ -883,7 +1019,10 @@ class TracksCompanion extends UpdateCompanion<Track> {
   final Value<int?> year;
   final Value<int> durationMs;
   final Value<String?> coverPath;
+  final Value<String?> originalCoverPath;
+  final Value<String?> customCoverPath;
   final Value<String> filePath;
+  final Value<String?> contentHash;
   final Value<String?> fileType;
   final Value<int?> bitrate;
   final Value<int?> sampleRate;
@@ -905,7 +1044,10 @@ class TracksCompanion extends UpdateCompanion<Track> {
     this.year = const Value.absent(),
     this.durationMs = const Value.absent(),
     this.coverPath = const Value.absent(),
+    this.originalCoverPath = const Value.absent(),
+    this.customCoverPath = const Value.absent(),
     this.filePath = const Value.absent(),
+    this.contentHash = const Value.absent(),
     this.fileType = const Value.absent(),
     this.bitrate = const Value.absent(),
     this.sampleRate = const Value.absent(),
@@ -928,7 +1070,10 @@ class TracksCompanion extends UpdateCompanion<Track> {
     this.year = const Value.absent(),
     this.durationMs = const Value.absent(),
     this.coverPath = const Value.absent(),
+    this.originalCoverPath = const Value.absent(),
+    this.customCoverPath = const Value.absent(),
     required String filePath,
+    this.contentHash = const Value.absent(),
     this.fileType = const Value.absent(),
     this.bitrate = const Value.absent(),
     this.sampleRate = const Value.absent(),
@@ -953,7 +1098,10 @@ class TracksCompanion extends UpdateCompanion<Track> {
     Expression<int>? year,
     Expression<int>? durationMs,
     Expression<String>? coverPath,
+    Expression<String>? originalCoverPath,
+    Expression<String>? customCoverPath,
     Expression<String>? filePath,
+    Expression<String>? contentHash,
     Expression<String>? fileType,
     Expression<int>? bitrate,
     Expression<int>? sampleRate,
@@ -976,7 +1124,10 @@ class TracksCompanion extends UpdateCompanion<Track> {
       if (year != null) 'year': year,
       if (durationMs != null) 'duration_ms': durationMs,
       if (coverPath != null) 'cover_path': coverPath,
+      if (originalCoverPath != null) 'original_cover_path': originalCoverPath,
+      if (customCoverPath != null) 'custom_cover_path': customCoverPath,
       if (filePath != null) 'file_path': filePath,
+      if (contentHash != null) 'content_hash': contentHash,
       if (fileType != null) 'file_type': fileType,
       if (bitrate != null) 'bitrate': bitrate,
       if (sampleRate != null) 'sample_rate': sampleRate,
@@ -1001,7 +1152,10 @@ class TracksCompanion extends UpdateCompanion<Track> {
     Value<int?>? year,
     Value<int>? durationMs,
     Value<String?>? coverPath,
+    Value<String?>? originalCoverPath,
+    Value<String?>? customCoverPath,
     Value<String>? filePath,
+    Value<String?>? contentHash,
     Value<String?>? fileType,
     Value<int?>? bitrate,
     Value<int?>? sampleRate,
@@ -1024,7 +1178,10 @@ class TracksCompanion extends UpdateCompanion<Track> {
       year: year ?? this.year,
       durationMs: durationMs ?? this.durationMs,
       coverPath: coverPath ?? this.coverPath,
+      originalCoverPath: originalCoverPath ?? this.originalCoverPath,
+      customCoverPath: customCoverPath ?? this.customCoverPath,
       filePath: filePath ?? this.filePath,
+      contentHash: contentHash ?? this.contentHash,
       fileType: fileType ?? this.fileType,
       bitrate: bitrate ?? this.bitrate,
       sampleRate: sampleRate ?? this.sampleRate,
@@ -1069,8 +1226,17 @@ class TracksCompanion extends UpdateCompanion<Track> {
     if (coverPath.present) {
       map['cover_path'] = Variable<String>(coverPath.value);
     }
+    if (originalCoverPath.present) {
+      map['original_cover_path'] = Variable<String>(originalCoverPath.value);
+    }
+    if (customCoverPath.present) {
+      map['custom_cover_path'] = Variable<String>(customCoverPath.value);
+    }
     if (filePath.present) {
       map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
     }
     if (fileType.present) {
       map['file_type'] = Variable<String>(fileType.value);
@@ -1120,7 +1286,10 @@ class TracksCompanion extends UpdateCompanion<Track> {
           ..write('year: $year, ')
           ..write('durationMs: $durationMs, ')
           ..write('coverPath: $coverPath, ')
+          ..write('originalCoverPath: $originalCoverPath, ')
+          ..write('customCoverPath: $customCoverPath, ')
           ..write('filePath: $filePath, ')
+          ..write('contentHash: $contentHash, ')
           ..write('fileType: $fileType, ')
           ..write('bitrate: $bitrate, ')
           ..write('sampleRate: $sampleRate, ')
@@ -2669,7 +2838,10 @@ typedef $$TracksTableCreateCompanionBuilder =
       Value<int?> year,
       Value<int> durationMs,
       Value<String?> coverPath,
+      Value<String?> originalCoverPath,
+      Value<String?> customCoverPath,
       required String filePath,
+      Value<String?> contentHash,
       Value<String?> fileType,
       Value<int?> bitrate,
       Value<int?> sampleRate,
@@ -2693,7 +2865,10 @@ typedef $$TracksTableUpdateCompanionBuilder =
       Value<int?> year,
       Value<int> durationMs,
       Value<String?> coverPath,
+      Value<String?> originalCoverPath,
+      Value<String?> customCoverPath,
       Value<String> filePath,
+      Value<String?> contentHash,
       Value<String?> fileType,
       Value<int?> bitrate,
       Value<int?> sampleRate,
@@ -2804,8 +2979,23 @@ class $$TracksTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get originalCoverPath => $composableBuilder(
+    column: $table.originalCoverPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customCoverPath => $composableBuilder(
+    column: $table.customCoverPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get filePath => $composableBuilder(
     column: $table.filePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2969,8 +3159,23 @@ class $$TracksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get originalCoverPath => $composableBuilder(
+    column: $table.originalCoverPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get customCoverPath => $composableBuilder(
+    column: $table.customCoverPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get filePath => $composableBuilder(
     column: $table.filePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3070,8 +3275,23 @@ class $$TracksTableAnnotationComposer
   GeneratedColumn<String> get coverPath =>
       $composableBuilder(column: $table.coverPath, builder: (column) => column);
 
+  GeneratedColumn<String> get originalCoverPath => $composableBuilder(
+    column: $table.originalCoverPath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get customCoverPath => $composableBuilder(
+    column: $table.customCoverPath,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get filePath =>
       $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get fileType =>
       $composableBuilder(column: $table.fileType, builder: (column) => column);
@@ -3207,7 +3427,10 @@ class $$TracksTableTableManager
                 Value<int?> year = const Value.absent(),
                 Value<int> durationMs = const Value.absent(),
                 Value<String?> coverPath = const Value.absent(),
+                Value<String?> originalCoverPath = const Value.absent(),
+                Value<String?> customCoverPath = const Value.absent(),
                 Value<String> filePath = const Value.absent(),
+                Value<String?> contentHash = const Value.absent(),
                 Value<String?> fileType = const Value.absent(),
                 Value<int?> bitrate = const Value.absent(),
                 Value<int?> sampleRate = const Value.absent(),
@@ -3229,7 +3452,10 @@ class $$TracksTableTableManager
                 year: year,
                 durationMs: durationMs,
                 coverPath: coverPath,
+                originalCoverPath: originalCoverPath,
+                customCoverPath: customCoverPath,
                 filePath: filePath,
+                contentHash: contentHash,
                 fileType: fileType,
                 bitrate: bitrate,
                 sampleRate: sampleRate,
@@ -3253,7 +3479,10 @@ class $$TracksTableTableManager
                 Value<int?> year = const Value.absent(),
                 Value<int> durationMs = const Value.absent(),
                 Value<String?> coverPath = const Value.absent(),
+                Value<String?> originalCoverPath = const Value.absent(),
+                Value<String?> customCoverPath = const Value.absent(),
                 required String filePath,
+                Value<String?> contentHash = const Value.absent(),
                 Value<String?> fileType = const Value.absent(),
                 Value<int?> bitrate = const Value.absent(),
                 Value<int?> sampleRate = const Value.absent(),
@@ -3275,7 +3504,10 @@ class $$TracksTableTableManager
                 year: year,
                 durationMs: durationMs,
                 coverPath: coverPath,
+                originalCoverPath: originalCoverPath,
+                customCoverPath: customCoverPath,
                 filePath: filePath,
+                contentHash: contentHash,
                 fileType: fileType,
                 bitrate: bitrate,
                 sampleRate: sampleRate,

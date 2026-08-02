@@ -85,6 +85,9 @@ flutter run -d windows
 - **`pubspec.yaml` 设置了 `generate: true`**（Flutter 资源代码生成已开启）。
 - 所有音频文件保留在本地，**不要上传到任何地方**。
 - `.gitignore` 分两层：根目录忽略 `namida/`，`music_pocket/.gitignore` 处理 Flutter 标准忽略规则。
+- **播放器进度条待后续优化**：静默播放时进度与音频一致，但主动拖动/跳跃后在部分歌曲上仍可能发生进度与实际播放不一致；后续需针对 iOS/macOS 的原生 seek 与位置回传做专项验证和修复。
+- **封面字段语义**：`coverPath` 是当前展示封面，`originalCoverPath` 是音频内嵌原始封面，`customCoverPath` 是用户自定义封面；清除自定义封面必须恢复 `originalCoverPath`。
+- **媒体文件删除边界**：只允许删除应用 `audio/`、`covers/` 目录内的托管文件，绝不能删除用户最初导入位置的原文件；歌曲删除失败时保留数据库记录。
 
 ## iOS / macOS 部署备忘
 

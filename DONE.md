@@ -3,6 +3,55 @@
 1.构建命令提示：cd music_pocket && flutter run -d macos
 2.每次更新项目后 在此记录的内容应尽量精简 根据实际更新代码量调整
 
+## 文件清单
+```
+music_pocket/lib/
+├── main.dart                                  # 入口（已 OK）
+├── app.dart                                   # ProviderScope + DB 初始化 + markPlayed 监听
+├── core/
+│   ├── theme/app_theme.dart, app_colors.dart  # Material 3 主题
+│   └── extensions/track_extensions.dart       # display* / durationFormatted
+├── data/
+│   ├── database/app_database.dart, .g.dart   # Drift schema v2
+│   ├── daos/track_dao.dart, .g.dart           # @DriftAccessor
+│   ├── daos/playlist_dao.dart, .g.dart        # 歌单相关 Drift 查询
+│   ├── repositories/track_repository.dart     # 曲目业务封装
+│   ├── repositories/playlist_repository.dart  # 歌单业务封装
+│   └── models/{track,playlist,category}.dart   # Freezed Model（名称用 Model 后缀避免与 Drift 行类冲突）
+├── providers/
+│   ├── database_provider.dart                 # db/repo/metadata
+│   ├── track_provider.dart                    # tracks/currentTrack/playMode
+│   ├── artist_provider.dart                 # 艺术家分组
+│   └── playlist_provider.dart               # 歌单/歌单曲目
+├── services/
+│   ├── audio_player_service.dart              # 动态待播队列 + 上下文自动补齐 + 持久化/恢复 + 流式状态
+│   └── metadata_service.dart                  # audio_metadata_reader
+├── screens/
+│   ├── home/home_screen.dart                  # 4-Tab 导航 + 音量/主题顶栏
+│   ├── library/library_screen.dart            # 歌曲/艺术家/歌单 Tab
+│   ├── library/artist_detail_screen.dart      # 艺术家详情/曲目
+│   ├── library/playlist_tab.dart              # 歌单列表
+│   ├── library/playlist_detail_screen.dart    # 歌单曲目
+│   ├── import/import_screen.dart              # 真实导入 + 进度
+│   └── player/player_screen.dart              # 完整播放器
+└── widgets/
+    ├── common/cover_placeholder.dart          # 封面组件
+    ├── common/volume_control.dart             # 顶栏音量控制
+    ├── common/text_input_dialog.dart          # 新建/重命名输入框
+    ├── library/track_list_tile.dart           # Track 行（加入歌单/编辑）
+    ├── library/track_edit_sheet.dart          # 编辑面板（自定义覆盖）
+    ├── library/add_to_playlist_sheet.dart     # 加入歌单
+    ├── library/track_quick_actions.dart       # 长按曲目菜单（下一首/加入播放列表/加入歌单/编辑/删除）
+    ├── player/mini_player.dart                # MiniPlayer（实时跟当前曲目 + 队列按钮）
+    └── player/play_queue_sheet.dart           # 播放列表底部抽屉（拖拽排序/删除/点按播放）
+
+test/
+├── widget_test.dart                           # App smoke test
+└── playlist_cover_test.dart                   # 歌单封面 DAO 测试
+```
+
+
+
 ## ✅ 第 1 步：编译基础设施
 - 补 `pubspec.yaml` 依赖：`freezed_annotation`、`json_annotation`、`freezed`、`json_serializable`、`audio_metadata_reader`（替换 `on_audio_query`）
 - 下载 Inter 字体（Regular/Medium/SemiBold/Bold）到 `assets/fonts/`
@@ -289,6 +338,13 @@
 - 修复关 mini 后自动续播队列为空时下一首从头播放库的问题：派生基准改为当前曲在源中的位置
 - 验证：`flutter analyze` 通过（仅 2 个预配置 assets 目录缺失警告）
 
+## ✅ 第 30 步：MiniPlayer 进度按实际播放时长绘制
+- `lib/widgets/player/mini_player.dart`：进度条采用正在播放的音频引擎时长，不再使用可能不准确的导入元数据时长
+- `lib/services/audio_player_service.dart`：切歌加载前清空上一首的缓存时长，避免进度条短暂沿用错误上限
+- 迷你/完整播放器均改为拖动时仅本地预览、松手时只提交一次 seek，避免一轮拖动产生大量并发原生定位请求
+- seek 成功或失败后都会清除本地拖动目标，恢复音频引擎位置；连续拖动时仅最后一次操作可更新界面
+- 验证：`flutter analyze` 通过（仅 2 个预配置 assets 目录缺失警告）；`flutter test` 通过（4/4）
+
 ## ⚠️ 环境注意事项（更新到 AGENTS.md）
 - 系统没有 Rust 工具链 → 不能用 `metadata_god`，已切到 `audio_metadata_reader`（纯 Dart）
 - Windows 完整构建需开启系统 Developer Mode（用于 plugin symlinks）。`flutter test`/`flutter analyze` 不受影响
@@ -296,49 +352,17 @@
 - 导入的音频副本：`<docs>/music_pocket/audio/<microsec>.<ext>`
 - 提取的封面：`<docs>/music_pocket/covers/<microsec>.<ext>`
 
-## 文件清单
-```
-music_pocket/lib/
-├── main.dart                                  # 入口（已 OK）
-├── app.dart                                   # ProviderScope + DB 初始化 + markPlayed 监听
-├── core/
-│   ├── theme/app_theme.dart, app_colors.dart  # Material 3 主题
-│   └── extensions/track_extensions.dart       # display* / durationFormatted
-├── data/
-│   ├── database/app_database.dart, .g.dart   # Drift schema v2
-│   ├── daos/track_dao.dart, .g.dart           # @DriftAccessor
-│   ├── daos/playlist_dao.dart, .g.dart        # 歌单相关 Drift 查询
-│   ├── repositories/track_repository.dart     # 曲目业务封装
-│   ├── repositories/playlist_repository.dart  # 歌单业务封装
-│   └── models/{track,playlist,category}.dart   # Freezed Model（名称用 Model 后缀避免与 Drift 行类冲突）
-├── providers/
-│   ├── database_provider.dart                 # db/repo/metadata
-│   ├── track_provider.dart                    # tracks/currentTrack/playMode
-│   ├── artist_provider.dart                 # 艺术家分组
-│   └── playlist_provider.dart               # 歌单/歌单曲目
-├── services/
-│   ├── audio_player_service.dart              # 动态待播队列 + 上下文自动补齐 + 持久化/恢复 + 流式状态
-│   └── metadata_service.dart                  # audio_metadata_reader
-├── screens/
-│   ├── home/home_screen.dart                  # 4-Tab 导航 + 音量/主题顶栏
-│   ├── library/library_screen.dart            # 歌曲/艺术家/歌单 Tab
-│   ├── library/artist_detail_screen.dart      # 艺术家详情/曲目
-│   ├── library/playlist_tab.dart              # 歌单列表
-│   ├── library/playlist_detail_screen.dart    # 歌单曲目
-│   ├── import/import_screen.dart              # 真实导入 + 进度
-│   └── player/player_screen.dart              # 完整播放器
-└── widgets/
-    ├── common/cover_placeholder.dart          # 封面组件
-    ├── common/volume_control.dart             # 顶栏音量控制
-    ├── common/text_input_dialog.dart          # 新建/重命名输入框
-    ├── library/track_list_tile.dart           # Track 行（加入歌单/编辑）
-    ├── library/track_edit_sheet.dart          # 编辑面板（自定义覆盖）
-    ├── library/add_to_playlist_sheet.dart     # 加入歌单
-    ├── library/track_quick_actions.dart       # 长按曲目菜单（下一首/加入播放列表/加入歌单/编辑/删除）
-    ├── player/mini_player.dart                # MiniPlayer（实时跟当前曲目 + 队列按钮）
-    └── player/play_queue_sheet.dart           # 播放列表底部抽屉（拖拽排序/删除/点按播放）
 
-test/
-├── widget_test.dart                           # App smoke test
-└── playlist_cover_test.dart                   # 歌单封面 DAO 测试
-```
+## ✅ 第 31 步：可靠识别重复导入
+- `Tracks` 增加可空 `contentHash`，Drift schema 升级至 v3；迁移只新增列，不为旧数据添加唯一约束。
+- `ContentHashService` 以流式 SHA-256 计算文件指纹；导入前补齐旧歌曲的空指纹，按内容而非路径跳过重复导入。指纹或旧文件读取失败会抛出，由既有导入统计计为失败。
+- 新增 `track_repository_import_test.dart`：覆盖同路径、异路径同内容、同名不同内容、旧记录补齐、旧库已有重复记录，以及 v2→v3 数据迁移不丢失歌曲。
+- 验证：`build_runner` 通过；`flutter test` 通过（9/9）；`flutter analyze` 仅保留已有的 2 个 assets 目录警告。
+
+## ✅ 第 32 步：删除应用托管的音频与封面
+- `Tracks` 新增 `originalCoverPath` / `customCoverPath`，schema 升级至 v4；导入后直接使用内嵌封面，自定义封面清除后恢复原始封面。
+- 删除歌曲时仅清理应用托管音频及无引用封面；共享封面和外部原文件保留，文件清理失败时数据库歌曲记录不删除并提示用户。
+- 替换或清除自定义封面后清理旧的无引用文件；删除当前歌曲前释放播放器文件句柄，并同步移出来源、队列和历史。
+- `TrackDao.deleteTrack()` 在同一事务中清理歌单、分类关联和歌曲记录。
+- 新增文件清理、共享引用、路径保护、失败保留、封面恢复、内嵌封面和 v3→v4 迁移测试。
+- 验证：`build_runner` 通过；`flutter test` 通过（19/19）；`flutter analyze` 仅保留已有的 2 个 assets 目录警告。

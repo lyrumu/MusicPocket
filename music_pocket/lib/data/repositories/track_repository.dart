@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -7,12 +8,27 @@ import 'package:path_provider/path_provider.dart';
 import '../database/app_database.dart';
 import '../daos/track_dao.dart';
 import '../../services/metadata_service.dart';
+import '../../services/content_hash_service.dart';
 
 class TrackRepository {
-  TrackRepository(this._dao, this._metadataService);
+  TrackRepository(
+    this._dao,
+    MetadataService metadataService, {
+    ContentHashService? contentHashService,
+    Future<Directory> Function()? getDocumentsDirectory,
+    Future<void> Function(File file)? deleteFile,
+    TrackMetadata Function(String filePath)? extractMetadata,
+  }) : _contentHashService = contentHashService ?? ContentHashService.instance,
+       _getDocumentsDirectory =
+           getDocumentsDirectory ?? getApplicationDocumentsDirectory,
+       _deleteFile = deleteFile ?? _defaultDeleteFile,
+       _extractMetadata = extractMetadata ?? metadataService.extractMetadata;
 
   final TrackDao _dao;
-  final MetadataService _metadataService;
+  final ContentHashService _contentHashService;
+  final Future<Directory> Function() _getDocumentsDirectory;
+  final Future<void> Function(File file) _deleteFile;
+  final TrackMetadata Function(String filePath) _extractMetadata;
 
   static const _audioDirName = 'audio';
   static const _coverDirName = 'covers';
@@ -41,10 +57,57 @@ class TrackRepository {
 
   Future<int> markPlayed(int id) => _dao.markPlayed(id);
 
-  Future<int> deleteTrack(int id) => _dao.deleteTrack(id);
+  Future<void> deleteTrack(int id) async {
+    final track = await _dao.getById(id);
+    if (track == null) return;
 
-  Future<String> saveCustomCoverFile(String sourceImagePath) async {
-    final appDir = await getApplicationDocumentsDirectory();
+    final appDir = await _getDocumentsDirectory();
+    final coverPaths = <String>{
+      ?track.coverPath,
+      ?track.originalCoverPath,
+      ?track.customCoverPath,
+    };
+
+    for (final coverPath in coverPaths) {
+      final referenced = await _dao.isCoverPathReferenced(
+        coverPath,
+        excludingTrackId: id,
+      );
+      if (!referenced) {
+        await _deleteManagedFile(
+          coverPath,
+          managedDirectory: p.join(appDir.path, _coverDirName),
+        );
+      }
+    }
+
+    await _deleteManagedFile(
+      track.filePath,
+      managedDirectory: p.join(appDir.path, _audioDirName),
+    );
+
+    try {
+      await _dao.deleteTrack(id);
+    } catch (error) {
+      throw TrackDeletionException('数据库记录删除失败', cause: error);
+    }
+  }
+
+  Future<CoverUpdateResult> setCustomCoverFromFile(
+    int id,
+    String sourceImagePath,
+  ) async {
+    final storedPath = await _saveCustomCoverFile(sourceImagePath);
+    try {
+      return await _setCustomCover(id, storedPath);
+    } catch (_) {
+      await _deleteManagedCoverIfUnreferenced(storedPath, ignoreFailure: true);
+      rethrow;
+    }
+  }
+
+  Future<String> _saveCustomCoverFile(String sourceImagePath) async {
+    final appDir = await _getDocumentsDirectory();
     final coverDir = Directory(p.join(appDir.path, _coverDirName));
     if (!await coverDir.exists()) {
       await coverDir.create(recursive: true);
@@ -58,11 +121,43 @@ class TrackRepository {
     return dest.path;
   }
 
-  Future<int> setCustomCover(int id, String? coverPath) {
-    return _dao.setUserEdited(id, TracksCompanion(coverPath: Value(coverPath)));
+  Future<CoverUpdateResult> _setCustomCover(int id, String coverPath) async {
+    var track = await _requireTrack(id);
+    track = await _ensureOriginalCoverState(track);
+    final oldCustomPath = track.customCoverPath;
+
+    await _dao.setUserEdited(
+      id,
+      TracksCompanion(
+        coverPath: Value(coverPath),
+        customCoverPath: Value(coverPath),
+      ),
+    );
+
+    final warning = await _cleanupReplacedCover(oldCustomPath, coverPath);
+    return CoverUpdateResult(coverPath: coverPath, warning: warning);
   }
 
-  Future<int> clearCustomCover(int id) => setCustomCover(id, null);
+  Future<CoverUpdateResult> clearCustomCover(int id) async {
+    var track = await _requireTrack(id);
+    track = await _ensureOriginalCoverState(track);
+    final oldCustomPath = track.customCoverPath;
+    final originalCoverPath = track.originalCoverPath;
+
+    await _dao.setUserEdited(
+      id,
+      TracksCompanion(
+        coverPath: Value(originalCoverPath),
+        customCoverPath: const Value(null),
+      ),
+    );
+
+    final warning = await _cleanupReplacedCover(
+      oldCustomPath,
+      originalCoverPath,
+    );
+    return CoverUpdateResult(coverPath: originalCoverPath, warning: warning);
+  }
 
   Future<int> editTrackMetadata(
     int id, {
@@ -91,14 +186,16 @@ class TrackRepository {
   }
 
   Future<ImportResult> importPath(String sourcePath) async {
-    final existing = await _dao.getByFilePath(sourcePath);
+    final contentHash = await _contentHashService.calculateFileHash(sourcePath);
+    await _backfillContentHashes();
+    final existing = await _dao.getByContentHash(contentHash);
     if (existing != null) {
       return ImportResult(track: existing, skipped: true);
     }
 
-    final meta = _metadataService.extractMetadata(sourcePath);
+    final meta = _extractMetadata(sourcePath);
 
-    final appDir = await getApplicationDocumentsDirectory();
+    final appDir = await _getDocumentsDirectory();
     final audioDir = Directory(p.join(appDir.path, _audioDirName));
     if (!await audioDir.exists()) {
       await audioDir.create(recursive: true);
@@ -137,7 +234,9 @@ class TrackRepository {
         year: Value(meta.year),
         durationMs: Value(meta.durationMs),
         coverPath: Value(coverPath),
+        originalCoverPath: Value(coverPath),
         filePath: storedPath,
+        contentHash: Value(contentHash),
         fileType: Value(meta.fileType),
         bitrate: Value(meta.bitrate),
         sampleRate: Value(meta.sampleRate),
@@ -148,6 +247,156 @@ class TrackRepository {
 
     final track = await _dao.getById(id);
     return ImportResult(track: track!, skipped: false);
+  }
+
+  Future<void> _backfillContentHashes() async {
+    final tracks = await _dao.getWithoutContentHash();
+    for (final track in tracks) {
+      final contentHash = await _contentHashService.calculateFileHash(
+        track.filePath,
+      );
+      await _dao.setContentHash(track.id, contentHash);
+    }
+  }
+
+  Future<Track> _requireTrack(int id) async {
+    final track = await _dao.getById(id);
+    if (track == null) {
+      throw StateError('Track $id does not exist');
+    }
+    return track;
+  }
+
+  Future<Track> _ensureOriginalCoverState(Track track) async {
+    if (track.originalCoverPath != null &&
+        track.originalCoverPath!.isNotEmpty) {
+      return track;
+    }
+
+    final metadata = _extractMetadata(track.filePath);
+    final coverBytes = metadata.coverBytes;
+    String? originalCoverPath;
+    String? customCoverPath = track.customCoverPath ?? track.coverPath;
+
+    if (coverBytes != null && coverBytes.isNotEmpty) {
+      final currentPath = track.coverPath;
+      if (currentPath != null &&
+          await _fileMatchesBytes(currentPath, coverBytes)) {
+        originalCoverPath = currentPath;
+        customCoverPath = null;
+      } else {
+        final appDir = await _getDocumentsDirectory();
+        originalCoverPath = await _saveCoverBytes(
+          appDir,
+          coverBytes,
+          metadata.coverMimeType,
+        );
+      }
+    }
+
+    try {
+      await _dao.patchTrackFields(
+        track.id,
+        TracksCompanion(
+          originalCoverPath: Value(originalCoverPath),
+          customCoverPath: Value(customCoverPath),
+        ),
+      );
+    } catch (_) {
+      if (originalCoverPath != null && originalCoverPath != track.coverPath) {
+        await _deleteManagedCoverIfUnreferenced(
+          originalCoverPath,
+          ignoreFailure: true,
+        );
+      }
+      rethrow;
+    }
+    return (await _dao.getById(track.id))!;
+  }
+
+  Future<String> _saveCoverBytes(
+    Directory appDir,
+    List<int> bytes,
+    String? mimeType,
+  ) async {
+    final coverDir = Directory(p.join(appDir.path, _coverDirName));
+    if (!await coverDir.exists()) {
+      await coverDir.create(recursive: true);
+    }
+    final fileName =
+        '${DateTime.now().microsecondsSinceEpoch}${_coverExtension(mimeType)}';
+    final file = File(p.join(coverDir.path, fileName));
+    await file.writeAsBytes(bytes, flush: true);
+    return file.path;
+  }
+
+  Future<bool> _fileMatchesBytes(String filePath, List<int> bytes) async {
+    final file = File(filePath);
+    if (!await file.exists()) return false;
+    try {
+      return const ListEquality<int>().equals(await file.readAsBytes(), bytes);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<String?> _cleanupReplacedCover(
+    String? oldPath,
+    String? activePath,
+  ) async {
+    if (oldPath == null || oldPath.isEmpty || oldPath == activePath) {
+      return null;
+    }
+    try {
+      await _deleteManagedCoverIfUnreferenced(oldPath);
+      return null;
+    } catch (error) {
+      return '封面已更新，但旧封面文件清理失败：$error';
+    }
+  }
+
+  Future<void> _deleteManagedCoverIfUnreferenced(
+    String coverPath, {
+    bool ignoreFailure = false,
+  }) async {
+    if (await _dao.isCoverPathReferenced(coverPath)) return;
+    try {
+      final appDir = await _getDocumentsDirectory();
+      await _deleteManagedFile(
+        coverPath,
+        managedDirectory: p.join(appDir.path, _coverDirName),
+      );
+    } catch (_) {
+      if (!ignoreFailure) rethrow;
+    }
+  }
+
+  Future<void> _deleteManagedFile(
+    String filePath, {
+    required String managedDirectory,
+  }) async {
+    final normalizedFile = p.normalize(p.absolute(filePath));
+    final normalizedDirectory = p.normalize(p.absolute(managedDirectory));
+    if (!p.isWithin(normalizedDirectory, normalizedFile)) return;
+
+    final type = await FileSystemEntity.type(
+      normalizedFile,
+      followLinks: false,
+    );
+    if (type == FileSystemEntityType.notFound) return;
+    if (type != FileSystemEntityType.file &&
+        type != FileSystemEntityType.link) {
+      throw TrackDeletionException('托管路径不是文件：$filePath');
+    }
+    try {
+      await _deleteFile(File(normalizedFile));
+    } catch (error) {
+      throw TrackDeletionException('无法删除托管文件：$filePath', cause: error);
+    }
+  }
+
+  static Future<void> _defaultDeleteFile(File file) async {
+    await file.delete();
   }
 
   String _coverExtension(String? mimeType) {
@@ -165,4 +414,21 @@ class ImportResult {
   final bool skipped;
 
   const ImportResult({required this.track, required this.skipped});
+}
+
+class CoverUpdateResult {
+  final String? coverPath;
+  final String? warning;
+
+  const CoverUpdateResult({required this.coverPath, this.warning});
+}
+
+class TrackDeletionException implements Exception {
+  final String message;
+  final Object? cause;
+
+  const TrackDeletionException(this.message, {this.cause});
+
+  @override
+  String toString() => cause == null ? message : '$message（$cause）';
 }

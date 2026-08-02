@@ -9,11 +9,19 @@ import '../../services/audio_player_service.dart';
 import '../../widgets/common/cover_placeholder.dart';
 import '../../widgets/player/play_queue_sheet.dart';
 
-class PlayerScreen extends ConsumerWidget {
+class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlayerScreen> createState() => _PlayerScreenState();
+}
+
+class _PlayerScreenState extends ConsumerState<PlayerScreen> {
+  double? _dragValue;
+  int _seekVersion = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final audioService = AudioPlayerService.instance;
@@ -52,9 +60,7 @@ class PlayerScreen extends ConsumerWidget {
                         const SizedBox(height: 24),
                         _buildProgressBar(
                           context,
-                          ref,
                           audioService,
-                          currentTrack,
                         ),
                         const SizedBox(height: 16),
                         _buildControls(context, ref, audioService, currentTrack),
@@ -159,15 +165,20 @@ class PlayerScreen extends ConsumerWidget {
 
   Widget _buildProgressBar(
     BuildContext context,
-    WidgetRef ref,
     AudioPlayerService audioService,
-    currentTrack,
   ) {
     return StreamBuilder<Duration>(
       stream: audioService.positionStream,
       builder: (context, snapshot) {
-        final position = snapshot.data ?? Duration.zero;
+        final position = snapshot.data ?? audioService.position;
         final duration = audioService.duration;
+        final maxMs = duration.inMilliseconds > 0 ? duration.inMilliseconds : 1;
+        final enabled = duration.inMilliseconds > 0;
+        final value = (_dragValue ??
+                (enabled
+                    ? position.inMilliseconds.clamp(0, maxMs).toDouble()
+                    : 0.0))
+            .clamp(0.0, maxMs.toDouble());
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
@@ -191,20 +202,13 @@ class PlayerScreen extends ConsumerWidget {
                   ),
                 ),
                 child: Slider(
-                  value: duration.inMilliseconds > 0
-                      ? position.inMilliseconds
-                            .clamp(0, duration.inMilliseconds)
-                            .toDouble()
-                      : 0,
+                  value: value,
                   min: 0,
-                  max: duration.inMilliseconds > 0
-                      ? duration.inMilliseconds.toDouble()
-                      : 1,
-                  onChanged: duration.inMilliseconds > 0
-                      ? (value) => audioService.seek(
-                          Duration(milliseconds: value.toInt()),
-                        )
-                      : null,
+                  max: maxMs.toDouble(),
+                  onChanged:
+                      enabled ? (value) => setState(() => _dragValue = value) : null,
+                  onChangeStart: _startSeeking,
+                  onChangeEnd: (value) => _finishSeeking(audioService, value),
                 ),
               ),
               Padding(
@@ -228,6 +232,25 @@ class PlayerScreen extends ConsumerWidget {
         );
       },
     );
+  }
+
+  void _startSeeking(double value) {
+    _seekVersion++;
+    setState(() => _dragValue = value);
+  }
+
+  Future<void> _finishSeeking(
+    AudioPlayerService audioService,
+    double value,
+  ) async {
+    final version = _seekVersion;
+    try {
+      await audioService.seek(Duration(milliseconds: value.toInt()));
+    } finally {
+      if (mounted && version == _seekVersion) {
+        setState(() => _dragValue = null);
+      }
+    }
   }
 
   Widget _buildControls(

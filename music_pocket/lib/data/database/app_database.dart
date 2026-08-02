@@ -20,7 +20,10 @@ class Tracks extends Table {
   IntColumn get year => integer().nullable()();
   IntColumn get durationMs => integer().withDefault(const Constant(0))();
   TextColumn get coverPath => text().nullable()();
+  TextColumn get originalCoverPath => text().nullable()();
+  TextColumn get customCoverPath => text().nullable()();
   TextColumn get filePath => text().unique()();
+  TextColumn get contentHash => text().nullable()();
   TextColumn get fileType => text().nullable()();
   IntColumn get bitrate => integer().nullable()();
   IntColumn get sampleRate => integer().nullable()();
@@ -101,7 +104,7 @@ class AppDatabase extends _$AppDatabase {
   late final PlaylistDao playlistDao = PlaylistDao(this);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -111,6 +114,17 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (m, from, to) async {
       if (from < 2) {
         await m.addColumn(tracks, tracks.isUserEdited);
+      }
+      if (from < 3) {
+        await m.addColumn(tracks, tracks.contentHash);
+      }
+      if (from < 4) {
+        await m.addColumn(tracks, tracks.originalCoverPath);
+        await m.addColumn(tracks, tracks.customCoverPath);
+        await customStatement(
+          'UPDATE tracks SET custom_cover_path = cover_path '
+          'WHERE cover_path IS NOT NULL AND cover_path != \'\'',
+        );
       }
     },
   );

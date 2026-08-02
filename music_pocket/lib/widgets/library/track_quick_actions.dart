@@ -111,7 +111,10 @@ class TrackQuickActions extends ConsumerWidget {
           ),
           ListTile(
             leading: Icon(Icons.delete_outline, color: theme.colorScheme.error),
-            title: Text('删除歌曲', style: TextStyle(color: theme.colorScheme.error)),
+            title: Text(
+              '删除歌曲',
+              style: TextStyle(color: theme.colorScheme.error),
+            ),
             onTap: () => _confirmDelete(context, ref),
           ),
           const SizedBox(height: 8),
@@ -134,7 +137,11 @@ class TrackQuickActions extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('删除歌曲'),
-        content: Text('确定删除「${track.displayTitle}」吗？此操作不可撤销。'),
+        content: Text(
+          '确定删除「${track.displayTitle}」吗？\n'
+          'Music Pocket 保存的音频副本和无引用封面会被删除，'
+          '最初导入位置的原文件不会受影响。',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -151,14 +158,28 @@ class TrackQuickActions extends ConsumerWidget {
     if (!context.mounted) return;
 
     final repo = ref.read(trackRepositoryProvider);
-    await repo.deleteTrack(track.id);
-    if (AudioPlayerService.instance.currentTrack?.id == track.id) {
-      await AudioPlayerService.instance.removeCurrentAndContinue();
+    final audio = AudioPlayerService.instance;
+    try {
+      await audio.prepareTrackDeletion(track.id);
+      await repo.deleteTrack(track.id);
+      await audio.completeTrackDeletion(track.id);
+      if (!context.mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      Navigator.of(context).pop();
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('已删除歌曲及应用托管文件'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          content: Text('删除失败，歌曲仍保留在资料库：$error'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
-    if (!context.mounted) return;
-    Navigator.of(context).pop();
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      const SnackBar(content: Text('已删除歌曲'), duration: Duration(seconds: 2)),
-    );
   }
 }

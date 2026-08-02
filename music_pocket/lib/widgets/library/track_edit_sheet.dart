@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/database/app_database.dart';
 import '../../providers/database_provider.dart';
+import '../../services/audio_player_service.dart';
 import '../common/cover_placeholder.dart';
 
 class TrackEditSheet extends ConsumerStatefulWidget {
@@ -34,6 +35,7 @@ class _TrackEditSheetState extends ConsumerState<TrackEditSheet> {
   late final TextEditingController _genreCtrl;
   late final TextEditingController _yearCtrl;
   String? _coverPath;
+  String? _customCoverPath;
   bool _saving = false;
 
   @override
@@ -47,6 +49,7 @@ class _TrackEditSheetState extends ConsumerState<TrackEditSheet> {
       text: widget.track.year?.toString() ?? '',
     );
     _coverPath = widget.track.coverPath;
+    _customCoverPath = widget.track.customCoverPath;
   }
 
   @override
@@ -71,10 +74,15 @@ class _TrackEditSheetState extends ConsumerState<TrackEditSheet> {
     setState(() => _saving = true);
     try {
       final repo = ref.read(trackRepositoryProvider);
-      final stored = await repo.saveCustomCoverFile(path);
-      await repo.setCustomCover(widget.track.id, stored);
+      final result = await repo.setCustomCoverFromFile(widget.track.id, path);
       if (!mounted) return;
-      setState(() => _coverPath = stored);
+      setState(() {
+        _coverPath = result.coverPath;
+        _customCoverPath = result.coverPath;
+      });
+      _showWarning(result.warning);
+    } catch (error) {
+      if (mounted) _showError('封面更换失败：$error');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -83,11 +91,17 @@ class _TrackEditSheetState extends ConsumerState<TrackEditSheet> {
   Future<void> _clearCustomCover() async {
     setState(() => _saving = true);
     try {
-      await ref
+      final result = await ref
           .read(trackRepositoryProvider)
-          .setCustomCover(widget.track.id, null);
+          .clearCustomCover(widget.track.id);
       if (!mounted) return;
-      setState(() => _coverPath = null);
+      setState(() {
+        _coverPath = result.coverPath;
+        _customCoverPath = null;
+      });
+      _showWarning(result.warning);
+    } catch (error) {
+      if (mounted) _showError('恢复原始封面失败：$error');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -127,7 +141,10 @@ class _TrackEditSheetState extends ConsumerState<TrackEditSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('删除歌曲'),
-        content: const Text('确定要从资料库中移除这首歌曲吗？\n原始音频文件不会被删除。'),
+        content: const Text(
+          '将删除 Music Pocket 保存的音频副本和未被其他歌曲使用的封面。'
+          '\n最初导入位置的原文件不会受影响。',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -141,9 +158,34 @@ class _TrackEditSheetState extends ConsumerState<TrackEditSheet> {
       ),
     );
     if (confirmed != true) return;
-    await ref.read(trackRepositoryProvider).deleteTrack(widget.track.id);
-    if (!mounted) return;
-    Navigator.of(context).pop();
+    setState(() => _saving = true);
+    final audio = AudioPlayerService.instance;
+    try {
+      await audio.prepareTrackDeletion(widget.track.id);
+      await ref.read(trackRepositoryProvider).deleteTrack(widget.track.id);
+      await audio.completeTrackDeletion(widget.track.id);
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      Navigator.of(context).pop();
+      messenger?.showSnackBar(const SnackBar(content: Text('已删除歌曲及应用托管文件')));
+    } catch (error) {
+      if (mounted) _showError('删除失败，歌曲仍保留在资料库：$error');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _showWarning(String? message) {
+    if (message == null || message.isEmpty) return;
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -177,11 +219,12 @@ class _TrackEditSheetState extends ConsumerState<TrackEditSheet> {
                         label: const Text('更改封面'),
                       ),
                       const SizedBox(height: 8),
-                      if (_coverPath != null && _coverPath!.isNotEmpty)
+                      if (_customCoverPath != null &&
+                          _customCoverPath!.isNotEmpty)
                         TextButton.icon(
                           onPressed: _saving ? null : _clearCustomCover,
-                          icon: const Icon(Icons.delete_outline),
-                          label: const Text('移除自定义封面'),
+                          icon: const Icon(Icons.restore),
+                          label: const Text('恢复原始封面'),
                         ),
                     ],
                   ),

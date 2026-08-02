@@ -56,17 +56,33 @@ class TrackDao extends DatabaseAccessor<AppDatabase> with _$TrackDaoMixin {
   Future<List<Track>> getByIds(List<int> ids) async {
     if (ids.isEmpty) return [];
     final idSet = ids.whereType<int>().toSet();
-    final rows = await (select(_tbl)
-          ..where((t) => t.id.isIn(idSet))
-          ..orderBy([(t) => OrderingTerm(expression: t.title)])).get();
+    final rows =
+        await (select(_tbl)
+              ..where((t) => t.id.isIn(idSet))
+              ..orderBy([(t) => OrderingTerm(expression: t.title)]))
+            .get();
     final byId = {for (final r in rows) r.id: r};
-    return ids.where((id) => byId.containsKey(id)).map((id) => byId[id]!).toList();
+    return ids
+        .where((id) => byId.containsKey(id))
+        .map((id) => byId[id]!)
+        .toList();
   }
 
   Future<Track?> getByFilePath(String filePath) {
     return (select(
       _tbl,
     )..where((t) => t.filePath.equals(filePath))).getSingleOrNull();
+  }
+
+  Future<Track?> getByContentHash(String contentHash) {
+    return (select(_tbl)
+          ..where((t) => t.contentHash.equals(contentHash))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<List<Track>> getWithoutContentHash() {
+    return (select(_tbl)..where((t) => t.contentHash.isNull())).get();
   }
 
   Future<List<String>> getAllFilePaths() async {
@@ -83,10 +99,32 @@ class TrackDao extends DatabaseAccessor<AppDatabase> with _$TrackDaoMixin {
   }
 
   Future<int> deleteTrack(int id) async {
-    await (delete(attachedDatabase.playlistTracks)
-          ..where((pt) => pt.trackId.equals(id)))
-        .go();
-    return (delete(_tbl)..where((t) => t.id.equals(id))).go();
+    return attachedDatabase.transaction(() async {
+      await (delete(
+        attachedDatabase.playlistTracks,
+      )..where((pt) => pt.trackId.equals(id))).go();
+      await (delete(
+        attachedDatabase.trackCategories,
+      )..where((tc) => tc.trackId.equals(id))).go();
+      return (delete(_tbl)..where((t) => t.id.equals(id))).go();
+    });
+  }
+
+  Future<bool> isCoverPathReferenced(
+    String coverPath, {
+    int? excludingTrackId,
+  }) async {
+    final query = select(_tbl)
+      ..where((t) {
+        final referenced =
+            t.coverPath.equals(coverPath) |
+            t.originalCoverPath.equals(coverPath) |
+            t.customCoverPath.equals(coverPath);
+        if (excludingTrackId == null) return referenced;
+        return referenced & t.id.equals(excludingTrackId).not();
+      })
+      ..limit(1);
+    return await query.getSingleOrNull() != null;
   }
 
   Future<int> toggleFavorite(int id, bool favorite) {
@@ -106,6 +144,12 @@ class TrackDao extends DatabaseAccessor<AppDatabase> with _$TrackDaoMixin {
   Future<int> setCoverPath(int id, String? coverPath) {
     return (update(_tbl)..where((t) => t.id.equals(id))).write(
       TracksCompanion(coverPath: Value(coverPath)),
+    );
+  }
+
+  Future<int> setContentHash(int id, String contentHash) {
+    return (update(_tbl)..where((t) => t.id.equals(id))).write(
+      TracksCompanion(contentHash: Value(contentHash)),
     );
   }
 

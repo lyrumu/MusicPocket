@@ -18,6 +18,7 @@ class MiniPlayer extends ConsumerStatefulWidget {
 
 class _MiniPlayerState extends ConsumerState<MiniPlayer> {
   double? _dragValue;
+  int _seekVersion = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +80,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
   Widget _buildProgressBar(AudioPlayerService audioService, ThemeData theme) {
     return StreamBuilder<Duration?>(
       stream: audioService.durationStream,
+      initialData: audioService.duration,
       builder: (context, durationSnapshot) {
         final duration = durationSnapshot.data ?? Duration.zero;
         final maxMs = duration.inMilliseconds > 0 ? duration.inMilliseconds : 1;
@@ -110,11 +112,8 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                   max: maxMs.toDouble(),
                   onChanged:
                       enabled ? (v) => setState(() => _dragValue = v) : null,
-                  onChangeStart: (v) => setState(() => _dragValue = v),
-                  onChangeEnd: (v) {
-                    setState(() => _dragValue = null);
-                    audioService.seek(Duration(milliseconds: v.toInt()));
-                  },
+                  onChangeStart: _startSeeking,
+                  onChangeEnd: (v) => _finishSeeking(audioService, v),
                 ),
               ),
             );
@@ -122,6 +121,25 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
         );
       },
     );
+  }
+
+  void _startSeeking(double value) {
+    _seekVersion++;
+    setState(() => _dragValue = value);
+  }
+
+  Future<void> _finishSeeking(
+    AudioPlayerService audioService,
+    double value,
+  ) async {
+    final version = _seekVersion;
+    try {
+      await audioService.seek(Duration(milliseconds: value.toInt()));
+    } finally {
+      if (mounted && version == _seekVersion) {
+        setState(() => _dragValue = null);
+      }
+    }
   }
 
   Widget _buildTrackInfo(BuildContext context, String? title, String? artist) {
