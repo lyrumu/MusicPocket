@@ -1,11 +1,11 @@
 # 完成清单
 置顶信息：
-1.构建命令提示：cd music_pocket && flutter run -d macos
+1.构建命令提示：在仓库根目录执行 `flutter run -d macos`
 2.每次更新项目后 在此记录的内容应尽量精简 根据实际更新代码量调整
 
 ## 文件清单
 ```
-music_pocket/lib/
+lib/
 ├── main.dart                                  # 入口（已 OK）
 ├── app.dart                                   # ProviderScope + DB 初始化 + markPlayed 监听
 ├── core/
@@ -259,7 +259,7 @@ test/
   - `launchUrl` 默认 mode（系统自行选处理器），try-catch + 失败 SnackBar 兜底
   - `macos/Runner/{DebugProfile,Release}.entitlements` 已含 `com.apple.security.network.client=true`
   - `GeneratedPluginRegistrant.swift` 与 `MainFlutterWindow.swift` 注册链路完整
-- 解决：**在 macOS 自带 Terminal（非 Trae 沙箱）执行 `cd music_pocket && flutter clean && flutter build macos --debug`**，让 SwiftPM 正常解析插件依赖并打包 entitlements。entitlements / 插件集成改动必须经完整重新构建才生效，hot-reload 不够
+- 解决：**在 macOS 自带 Terminal（非 Trae 沙箱）的仓库根目录执行 `flutter clean && flutter build macos --debug`**，让 SwiftPM 正常解析插件依赖并打包 entitlements。entitlements / 插件集成改动必须经完整重新构建才生效，hot-reload 不够
 - 注意：不要试图在 pubspec 加 `config.enable-swift-package-manager: false` 回退——pbxproj 仍引用 SwiftPM 包时该配置不生效，且 CocoaPods 已进维护模式
 
 ## ✅ 第 27 步：键盘播放快捷键
@@ -366,3 +366,16 @@ test/
 - `TrackDao.deleteTrack()` 在同一事务中清理歌单、分类关联和歌曲记录。
 - 新增文件清理、共享引用、路径保护、失败保留、封面恢复、内嵌封面和 v3→v4 迁移测试。
 - 验证：`build_runner` 通过；`flutter test` 通过（19/19）；`flutter analyze` 仅保留已有的 2 个 assets 目录警告。
+
+## ✅ 第 33 步：Pocket Atelier 双平台前端重构
+- 采用暖纸背景、蓝色主交互与少量陶土色，iOS 使用底部导航，macOS 宽窗使用侧边栏；保留全部既有导航、音量、主题、导入、搜索、队列与设置功能。
+- 无封面资源改为第四版唱片袋图案；自带或自定义封面仍原样显示。封面、唱片和文字使用独立安全区与强制裁切，避免遮挡和越界。
+- 重排资料库、歌单、艺术家、导入、搜索、完整播放器、Mini Player 与播放队列；窄屏把次级播放器操作收进菜单，功能不减少。
+- 仅修改 `theme/screens/widgets` 前端文件，Providers、Repositories、Services、数据库和播放逻辑未变。
+- `widget_test.dart` 增加 1200×760 宽窗与 390×844 窄屏切换回归，持续检查响应式导航和 RenderFlex 越界。
+- 验证：`flutter analyze` 仅保留原有 2 个 assets 目录警告；`flutter test` 19/19 通过；macOS 调试构建和实际窗口检查通过；iOS Simulator Debug 构建通过。
+
+## ✅ 第 34 步：工程根目录扁平化与应用显示名统一
+- 将 Flutter 工程从 `YourPocket/` 提升到 Git 根目录，合并根目录 Flutter 忽略规则并清理旧绝对路径缓存。
+- 各平台用户可见名称统一为 `Music Pocket`；保留 `music_pocket` Dart 包名、平台内部标识、Bundle ID 和本地数据目录。
+- 验证：`flutter analyze` 仅保留原有 2 个 assets 目录警告；`flutter test` 19/19 通过；macOS Debug 成功生成 `Music Pocket.app`，iOS Simulator Debug 构建通过，两端 Bundle 名称均为 `Music Pocket`。
