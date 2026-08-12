@@ -13,14 +13,22 @@ import '../../widgets/library/track_quick_actions.dart';
 import '../../widgets/player/mini_player.dart';
 import '../player/player_screen.dart';
 
-class PlaylistDetailScreen extends ConsumerWidget {
+class PlaylistDetailScreen extends ConsumerStatefulWidget {
   final Playlist playlist;
 
   const PlaylistDetailScreen({super.key, required this.playlist});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tracksAsync = ref.watch(playlistTracksProvider(playlist.id));
+  ConsumerState<PlaylistDetailScreen> createState() =>
+      _PlaylistDetailScreenState();
+}
+
+class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
+  bool _isManaging = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tracksAsync = ref.watch(playlistTracksProvider(widget.playlist.id));
     final currentTrack = ref.watch(currentTrackProvider).asData?.value;
     final tracks = tracksAsync.asData?.value ?? [];
     final coverPath = tracks
@@ -29,7 +37,18 @@ class PlaylistDetailScreen extends ConsumerWidget {
         ?.coverPath;
 
     return Scaffold(
-      appBar: AppBar(title: Text(playlist.name)),
+      appBar: AppBar(
+        title: Text(widget.playlist.name),
+        actions: [
+          TextButton(
+            onPressed: tracks.isEmpty && !_isManaging
+                ? null
+                : () => setState(() => _isManaging = !_isManaging),
+            child: Text(_isManaging ? '完成' : '管理'),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -37,10 +56,10 @@ class PlaylistDetailScreen extends ConsumerWidget {
               slivers: [
                 SliverToBoxAdapter(
                   child: _PlaylistHeader(
-                    playlist: playlist,
+                    playlist: widget.playlist,
                     coverPath: coverPath,
                     trackCount: tracks.length,
-                    onPlayAll: tracks.isEmpty ? null : () => _playAll(ref),
+                    onPlayAll: tracks.isEmpty ? null : _playAll,
                   ),
                 ),
                 tracksAsync.when(
@@ -59,37 +78,17 @@ class PlaylistDetailScreen extends ConsumerWidget {
                           return Center(
                             child: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 940),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
-                                child: Dismissible(
-                                  key: ValueKey(
-                                    'playlist_${playlist.id}_track_${track.id}',
-                                  ),
-                                  direction: DismissDirection.endToStart,
-                                  background: Container(
-                                    alignment: Alignment.centerRight,
-                                    padding: const EdgeInsets.only(right: 20),
-                                    color: Theme.of(context).colorScheme.error,
-                                    child: Icon(
-                                      Icons.delete_outline,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onError,
-                                    ),
-                                  ),
-                                  onDismissed: (_) => _removeTrack(ref, track),
-                                  child: TrackListTile(
-                                    track: track,
-                                    isPlaying: currentTrack?.id == track.id,
-                                    onTap: () =>
-                                        _playTrack(loadedTracks, track),
-                                    onLongPress: () =>
-                                        TrackQuickActions.show(context, track),
-                                    onPlayNext: () => AudioPlayerService
-                                        .instance
-                                        .playNextTrack(track),
-                                  ),
-                                ),
+                              child: TrackListTile(
+                                track: track,
+                                isPlaying: currentTrack?.id == track.id,
+                                onTap: () => _playTrack(loadedTracks, track),
+                                onLongPress: () =>
+                                    TrackQuickActions.show(context, track),
+                                onPlayNext: () => AudioPlayerService.instance
+                                    .playNextTrack(track),
+                                onRemove: _isManaging
+                                    ? () => _removeTrack(track)
+                                    : null,
                               ),
                             ),
                           );
@@ -119,27 +118,28 @@ class PlaylistDetailScreen extends ConsumerWidget {
 
   void _playTrack(List<Track> tracks, Track track) {
     AudioPlayerService.instance.playFromPlaylist(
-      playlist.id,
+      widget.playlist.id,
       tracks,
       startIndex: tracks.indexOf(track),
     );
   }
 
-  void _playAll(WidgetRef ref) {
+  void _playAll() {
     final tracks =
-        ref.read(playlistTracksProvider(playlist.id)).asData?.value ?? [];
+        ref.read(playlistTracksProvider(widget.playlist.id)).asData?.value ??
+        [];
     if (tracks.isEmpty) return;
     AudioPlayerService.instance.playFromPlaylist(
-      playlist.id,
+      widget.playlist.id,
       tracks,
       toggleIfCurrent: false,
     );
   }
 
-  Future<void> _removeTrack(WidgetRef ref, Track track) async {
+  Future<void> _removeTrack(Track track) async {
     await ref
         .read(playlistRepositoryProvider)
-        .removeTrack(playlist.id, track.id);
+        .removeTrack(widget.playlist.id, track.id);
   }
 
   void _openFullPlayer(BuildContext context) {

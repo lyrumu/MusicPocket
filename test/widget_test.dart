@@ -23,5 +23,13 @@ void main() {
 
     expect(find.text('导入'), findsOneWidget);
     expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('设置'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('存储占用'));
+    await tester.pump();
+
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('完成'), findsOneWidget);
   });
 }

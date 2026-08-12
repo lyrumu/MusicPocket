@@ -123,11 +123,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               ),
             ),
           ),
-          IconButton(
-            tooltip: '播放队列',
-            icon: const Icon(Icons.queue_music_rounded),
-            onPressed: () => PlayQueueSheet.show(context),
-          ),
         ],
       ),
     );

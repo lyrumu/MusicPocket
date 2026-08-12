@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/database_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/track_provider.dart';
 import '../../services/audio_player_service.dart';
-import '../../services/cache_service.dart';
+import '../../services/storage_service.dart';
 import '../../widgets/common/pocket_brand_mark.dart';
 import '../../widgets/common/volume_control.dart';
 import '../../widgets/player/mini_player.dart';
@@ -25,6 +26,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const double _desktopBreakpoint = 840;
   int _currentIndex = 0;
+  Future<StorageUsage>? _storageUsage;
 
   @override
   void initState() {
@@ -335,11 +337,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: Column(
                 children: [
                   ListTile(
-                    title: const Text('清除缓存'),
-                    subtitle: const Text('清理临时文件与播放缓冲'),
-                    leading: const Icon(Icons.cleaning_services_outlined),
+                    title: const Text('存储占用'),
+                    subtitle: FutureBuilder<StorageUsage>(
+                      future: _storageUsage ??= _loadStorageUsage(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) return const Text('无法读取存储占用');
+                        final usage = snapshot.data;
+                        if (usage == null) return const Text('正在计算…');
+                        return Text(
+                          '${StorageService.instance.formatSize(usage.totalBytes)} · 查看明细',
+                        );
+                      },
+                    ),
+                    leading: const Icon(Icons.storage_rounded),
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => _showClearCacheDialog(context),
+                    onTap: () => _showStorageUsageDialog(context),
                   ),
                   const Divider(indent: 56),
                   const ListTile(
@@ -358,16 +370,121 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _selectSection(int index) {
     if (_currentIndex == index) return;
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+      if (index == 3) {
+        _storageUsage = _loadStorageUsage();
+      }
+    });
   }
 
-  Future<void> _showClearCacheDialog(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+  Future<void> _showStorageUsageDialog(BuildContext context) async {
+    final future = _loadStorageUsage();
+    setState(() {
+      _storageUsage = future;
+    });
+    await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('清除缓存'),
-        content: const Text(
-          '此操作将清除应用运行过程中产生的临时缓存（如播放缓冲、图片缓存等），不会删除已导入的歌曲、歌单和设置。',
+        title: const Text('存储占用'),
+        content: SizedBox(
+          width: 340,
+          child: FutureBuilder<StorageUsage>(
+            future: future,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return const Text('无法读取存储占用，请稍后重试');
+              }
+              final usage = snapshot.data;
+              if (usage == null) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 28),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _storageRow(context, '音频文件', usage.audioBytes),
+                  _storageRow(context, '歌曲封面', usage.coverBytes),
+                  _storageRow(context, '资料库数据库', usage.databaseBytes),
+                  const Divider(height: 24),
+                  _storageRow(
+                    context,
+                    '总计',
+                    usage.totalBytes,
+                    emphasized: true,
+                  ),
+                  if (usage.orphanedFileCount > 0) ...[
+                    const Divider(height: 24),
+                    _storageRow(
+                      context,
+                      '未引用文件（${usage.orphanedFileCount} 个）',
+                      usage.orphanedBytes,
+                      emphasized: true,
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Text(
+                    '这些空间用于保存已导入的歌曲、封面和歌单信息，不属于缓存。删除资料库歌曲时，对应的托管文件会一并清理。',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (usage.orphanedFileCount > 0) ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            _confirmClearOrphanedFiles(context, usage),
+                        icon: const Icon(Icons.delete_sweep_outlined),
+                        label: const Text('清理未引用文件'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('完成'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<StorageUsage> _loadStorageUsage() async {
+    final tracks = await ref.read(trackRepositoryProvider).getAll();
+    return StorageService.instance.getUsage(
+      referencedAudioPaths: tracks.map((track) => track.filePath),
+      referencedCoverPaths: tracks.expand(
+        (track) => [
+          ?track.coverPath,
+          ?track.originalCoverPath,
+          ?track.customCoverPath,
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmClearOrphanedFiles(
+    BuildContext dialogContext,
+    StorageUsage usage,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: dialogContext,
+      builder: (context) => AlertDialog(
+        title: const Text('清理未引用文件'),
+        content: Text(
+          '将删除 ${usage.orphanedFileCount} 个未被资料库使用的应用托管文件，'
+          '预计释放 ${StorageService.instance.formatSize(usage.orphanedBytes)}。'
+          '当前歌曲和最初导入位置的原文件不会受影响。',
         ),
         actions: [
           TextButton(
@@ -376,21 +493,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('清除'),
+            child: const Text('清理'),
           ),
         ],
       ),
     );
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true || !mounted) return;
 
-    final result = await CacheService.instance.clearCache();
-    if (!context.mounted) return;
-    final message = result.success
-        ? '已清除缓存，释放 ${CacheService.instance.formatSize(result.freedBytes)} 空间'
-        : '清除缓存失败，请稍后重试';
+    final tracks = await ref.read(trackRepositoryProvider).getAll();
+    final result = await StorageService.instance.clearOrphanedFiles(
+      candidatePaths: usage.orphanedPaths,
+      referencedAudioPaths: tracks.map((track) => track.filePath),
+      referencedCoverPaths: tracks.expand(
+        (track) => [
+          ?track.coverPath,
+          ?track.originalCoverPath,
+          ?track.customCoverPath,
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+    setState(() {
+      _storageUsage = _loadStorageUsage();
+    });
+
+    final message = result.failedFileCount == 0
+        ? result.deletedFileCount == 0
+              ? '没有需要清理的未引用文件'
+              : '已清理 ${result.deletedFileCount} 个文件，释放 ${StorageService.instance.formatSize(result.freedBytes)}'
+        : '已清理 ${result.deletedFileCount} 个文件，${result.failedFileCount} 个清理失败';
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Widget _storageRow(
+    BuildContext context,
+    String label,
+    int bytes, {
+    bool emphasized = false,
+  }) {
+    final style = emphasized
+        ? Theme.of(context).textTheme.titleSmall
+        : Theme.of(context).textTheme.bodyMedium;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: style)),
+          Text(StorageService.instance.formatSize(bytes), style: style),
+        ],
+      ),
+    );
   }
 
   void _openFullPlayer(BuildContext context) {

@@ -76,29 +76,20 @@ class TrackQuickActions extends ConsumerWidget {
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.play_circle_outlined),
-            title: const Text('作为下一首播放'),
-            onTap: () {
-              AudioPlayerService.instance.playNextTrack(track);
-              _toast(context, '将作为下一首播放');
-              Navigator.of(context).pop();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.playlist_add_outlined),
-            title: const Text('加入播放列表'),
-            onTap: () {
-              AudioPlayerService.instance.addToQueue(track);
-              _toast(context, '已加入播放列表');
-              Navigator.of(context).pop();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.queue_music_outlined),
+            leading: const Icon(Icons.playlist_add_rounded),
             title: const Text('加入歌单'),
             onTap: () {
               Navigator.of(context).pop();
               AddToPlaylistSheet.show(context, track);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.queue_music_rounded),
+            title: const Text('加入播放队列'),
+            onTap: () {
+              AudioPlayerService.instance.addToQueue(track);
+              _toast(context, '已加入播放队列');
+              Navigator.of(context).pop();
             },
           ),
           ListTile(
