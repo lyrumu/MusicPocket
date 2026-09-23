@@ -7,9 +7,19 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'app.dart';
 import 'services/audio_handler.dart';
 import 'services/audio_player_service.dart';
+import 'screens/startup_screen.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    StartupScreen(
+      initialization: _initializeAudio(),
+      child: const ProviderScope(child: MusicPocketApp()),
+    ),
+  );
+}
+
+Future<void> _initializeAudio() async {
   if (Platform.isWindows || Platform.isLinux) {
     JustAudioMediaKit.ensureInitialized();
   }
@@ -23,5 +33,4 @@ void main() async {
     ),
   );
   AudioPlayerService.instance.attachHandler(handler);
-  runApp(const ProviderScope(child: MusicPocketApp()));
 }

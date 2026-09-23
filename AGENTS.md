@@ -80,13 +80,14 @@ flutter run -d windows
 
 ## 注意事项
 
-- **现有的测试 `test/widget_test.dart` 已过期** — 引用了不存在的 `MyApp`，会运行失败。需要修复后才能信任测试结果。
+- **启动测试**：`test/widget_test.dart` 使用 `MusicPocketApp` 验证主页；`test/startup_screen_test.dart` 验证音频初始化成功前不进入主页，以及初始化失败提示。
 - **Git 根目录就是 Flutter 项目根目录**；不要再嵌套 `YourPocket/` 或 `music_pocket/`。`pubspec.yaml` 中的内部 Dart 包名仍为 `music_pocket`。
 - **用户可见应用名统一为 `Music Pocket`**；Dart 包名、Bundle ID、Android applicationId 和本地数据目录属于内部标识，不要为了修改显示名而改动。
 - **生成文件未提交到仓库** — 修改了 `@freezed` 模型、`@riverpod` provider 或 Drift 表定义后，必须运行 `build_runner`。
 - **苹果生态优先** — 确保所有改动在 iOS/macOS 上能编译运行。Android/Windows是次要的。
 - **`pubspec.yaml` 设置了 `generate: true`**（Flutter 资源代码生成已开启）。
 - 所有音频文件保留在本地，**不要上传到任何地方**。
+- **图标与启动画面**：品牌资源由 `tool/generate_brand_assets.swift` 在 macOS 上生成（`swift tool/generate_brand_assets.swift`）；iOS 图标必须不透明，Android 12 启动标记须保留安全区域。原生启动背景与 Flutter 启动画面使用同一组深浅色；不能为展示画面人为延长启动时间。Web 目前仅同步图标资源，不代表本地音频与数据库已兼容浏览器。
 - 根目录 `.gitignore` 同时处理 Flutter 标准忽略规则和 `namida/`。
 - **播放器进度条待后续优化**：静默播放时进度与音频一致，但主动拖动/跳跃后在部分歌曲上仍可能发生进度与实际播放不一致；后续需针对 iOS/macOS 的原生 seek 与位置回传做专项验证和修复。
 - **封面字段语义**：`coverPath` 是当前展示封面，`originalCoverPath` 是音频内嵌原始封面，`customCoverPath` 是用户自定义封面；清除自定义封面必须恢复 `originalCoverPath`。

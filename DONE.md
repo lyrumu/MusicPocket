@@ -401,3 +401,20 @@ test/
 - 存储明细单独显示未被数据库引用的音频/封面文件数量与占用，经二次确认后可清理。
 - 清理前重新读取歌曲与封面引用，只删除上次扫描出的 `audio/`、`covers/` 普通文件；当前歌曲、数据库、外部原文件和新出现文件均不处理。
 - 存储测试覆盖引用文件保留、孤儿文件删除和外部路径保护；`flutter test` 22/22 通过；`flutter analyze` 仅保留原有 2 个 assets 目录警告。
+
+## ✅ 第 39 步：Xcode 27 iOS 部署兼容性
+- 将 Runner 与所有 CocoaPods target 的最低 iOS 版本统一为 15.0，修复 Xcode 27 拒绝 iOS 13.0 部署目标的构建错误。
+
+## ✅ 第 40 步：README 项目说明与品牌封面
+- README 补全项目定位、真实功能、平台验证状态、更新部署步骤与各平台费用边界。
+- 新增 `assets/readme-cover.png`：画面取自 Music Pocket 的 macOS 资料库、iPhone 播放页、本地导入流程与 Pocket Atelier 配色；指定参考图仅用于暖象牙浮雕材质。
+
+## ✅ 第 41 步：跨平台应用图标与启动画面
+- 新增象牙白底、蓝色口袋与音符品牌图标；同步 iOS、macOS、Android、Windows、Web 图标，Linux 窗口使用同一资源。
+- iOS 原生 LaunchScreen 与 Flutter 初始化画面使用同一居中标记和深浅背景；Android 同时配置旧版启动背景、Android 12+ 启动安全区域与自适应图标；macOS 设置匹配的初始窗口背景。
+- 音频服务初始化期间显示启动画面，完成后进入原有应用；失败时显示重启提示，不人为延时，不改变播放、资料库或文件管理逻辑。
+- `tool/generate_brand_assets.swift` 使用 macOS 系统绘图框架重建全部图标与启动图片，无新增依赖；生成时自检尺寸和 iOS 图标不透明要求。
+- 验证：23 项测试通过；追加的深浅色状态检查与实际 Flutter 渲染通过；Xcode `ibtool` / `actool` 编译 iOS 启动画面和资源通过；静态分析仅保留原有 `assets/images/` 缺失警告。
+- iOS 完整 Release 验证受阻于 SwiftPM 下载已有 DKImagePickerController 依赖，已停止本次构建和子进程；iPhone 冷启动、Android/Windows/Linux 实机效果尚待验证。Web 仅同步图标，未新增浏览器音频与数据库兼容。
+- macOS 完整 Release 构建被原有 `MACOSX_DEPLOYMENT_TARGET=10.15` 与当前 Xcode 要求最低 12.0 的冲突阻断；未擅自提高项目最低系统版本。
+- macOS 图标通过 `actool` 编译；本次窗口背景改动通过 Swift 独立类型检查（临时插件注册桩、macOS 12.0 编译目标）。深浅色 Flutter 启动预览保存在 `build/brand-preview/`。
