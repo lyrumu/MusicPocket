@@ -88,6 +88,9 @@ flutter run -d windows
 - **`pubspec.yaml` 设置了 `generate: true`**（Flutter 资源代码生成已开启）。
 - 所有音频文件保留在本地，**不要上传到任何地方**。
 - **图标与启动画面**：品牌资源由 `tool/generate_brand_assets.swift` 在 macOS 上生成（`swift tool/generate_brand_assets.swift`）；iOS 图标必须不透明，Android 12 启动标记须保留安全区域。原生启动背景与 Flutter 启动画面使用同一组深浅色；不能为展示画面人为延长启动时间。Web 目前仅同步图标资源，不代表本地音频与数据库已兼容浏览器。
+- **README 封面**：GitHub 会移除 Markdown 中的内联样式。`assets/readme-cover-rounded.svg` 原样内嵌 `assets/readme-cover.png`，只通过 SVG 裁切实现圆角；原封面更新后需要重新生成该 SVG。
+- **Android / Windows 手动打包**：Android Release 使用仓库外的私有密钥和被忽略的 `android/key.properties`，缺少签名配置时不得发布 APK；Windows ZIP 必须包含整个 `build/windows/x64/runner/Release` 目录内容，不能只复制 EXE。两端仍需对应设备验证。
+- **macOS Release**：当前 Xcode 27 和 Flutter 3.44 的最低 macOS 部署目标为 12.0；Runner、Podfile 及 Pods 的 `post_install` 设置需一致。本机 Flutter SDK 的 `font-subset` 带隔离标记且签名校验失败，构建时使用 `--no-tree-shake-icons`，不要移除隔离标记强行运行它。无 Developer ID 证书时只能生成未公证的预览包，不能宣称下载后可直接双击打开。
 - 根目录 `.gitignore` 同时处理 Flutter 标准忽略规则和 `namida/`。
 - **播放器进度条待后续优化**：静默播放时进度与音频一致，但主动拖动/跳跃后在部分歌曲上仍可能发生进度与实际播放不一致；后续需针对 iOS/macOS 的原生 seek 与位置回传做专项验证和修复。
 - **封面字段语义**：`coverPath` 是当前展示封面，`originalCoverPath` 是音频内嵌原始封面，`customCoverPath` 是用户自定义封面；清除自定义封面必须恢复 `originalCoverPath`。

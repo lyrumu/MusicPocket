@@ -1,123 +1,124 @@
 <p align="center">
-  <img src="assets/readme-cover.png" alt="Music Pocket：macOS 资料库、iPhone 播放页与本地音频文件进入蓝色口袋" width="100%">
+  <img src="assets/readme-cover-rounded.svg" alt="Music Pocket：本地音乐资料库、播放界面与音频导入的品牌概念图" width="100%">
 </p>
 
 # Music Pocket
 
-> 把自己的音乐，放进口袋。<br>
-> 本地优先 · 离线播放 · 音频不上传
+把自己的音乐，放进口袋。
 
-> [!WARNING]
-> 项目仍在开发中，尚未发布正式安装包。当前优先保证 iOS 与 macOS 体验。
+Music Pocket 是一款本地优先的跨平台音乐播放器。导入音频后，即可在设备上整理资料库、创建歌单并离线播放。音乐文件不会上传；应用不依赖服务端，也不提供在线串流。
 
-Music Pocket 是一款 Flutter 跨平台本地音乐播放器。用户导入自己的音频文件后，应用会在设备上管理副本、解析元数据与封面，并提供资料库、艺术家、歌单、搜索、播放队列和后台播放；项目没有服务端，也不提供在线串流。
+> 项目仍在开发中，预编译安装包尚未公开发布。
 
-## 已实现
+## 功能
 
-- 导入文件或递归扫描文件夹：MP3、FLAC、WAV、OGG、M4A、AAC、WMA、Opus
-- 读取并编辑标题、艺术家、专辑、流派、年份与封面
-- 按歌曲、艺术家、歌单组织资料库，支持本地搜索
-- 播放队列、顺序/单曲循环/随机播放、后台与锁屏控制
-- SHA-256 内容去重，避免同一音频换路径后被重复导入
-- 存储占用统计与未引用托管文件清理
-- Pocket Atelier 响应式界面：iOS 底部导航、macOS 侧边栏、深浅主题
+- 导入音频文件或扫描文件夹，支持 MP3、FLAC、WAV、OGG、M4A、AAC、WMA 和 Opus
+- 查看和编辑歌曲信息、专辑封面，按歌曲、艺术家和歌单浏览资料库
+- 搜索本地音乐，管理播放队列，选择顺序、单曲循环或随机播放
+- 后台播放与系统媒体控制
+- 按文件内容识别重复导入，查看存储占用并清理未引用的应用托管文件
+- 适配手机与桌面布局，支持深色和浅色主题
 
-导入时会把音频复制到应用管理目录；用户最初选择的源文件不会被删除。删除歌曲时也只允许清理应用自己的托管副本和无引用封面。
-
-## 技术栈
-
-| 范围 | 实现 |
-| --- | --- |
-| 客户端 | Flutter / Dart |
-| 状态管理 | Riverpod + code generation |
-| 本地数据库 | Drift + SQLite |
-| 音频 | just_audio + audio_service + audio_session |
-| 元数据 | audio_metadata_reader |
-| 模型 | Freezed + json_serializable |
+导入的音频会复制到应用管理目录，原始文件保留在原位置。删除歌曲时，应用只处理自己管理的副本和不再使用的封面。
 
 ## 平台状态
 
-| 平台 | 当前状态 |
+| 平台 | 当前验证情况 |
 | --- | --- |
-| iOS | iOS 15+；已在 iPhone 真机完成 Personal Team 签名、安装与运行 |
-| macOS | 已完成 Debug 构建和实际窗口验证 |
-| Android | 平台工程已存在；当前开发机未配置 Android SDK，Release 尚未验证 |
-| Windows | 平台工程及 media_kit 音频后端已接入；完整 Release 尚未验证，构建插件时需开启 Windows Developer Mode |
+| iOS | iOS 15+；已在 iPhone 真机运行，访客需按教程自行部署 |
+| macOS | macOS 12+；已完成 Release 通用架构构建，未使用 Developer ID 签名或公证，其他 Mac 尚未验证 |
+| Android | Release 签名配置已准备；缺少本机 SDK、私有密钥和设备验证，尚无 APK |
+| Windows | 工程及打包步骤已准备；Release 构建和 Windows 设备验证尚未完成 |
 
-## 更新后重新部署
+## 从源码运行
 
-### iPhone
-
-普通 Dart/UI 更新可以继续打开 `ios/Runner.xcworkspace`，选择 `Runner`、自己的 iPhone 和 `Release`，然后按 **Command + R**。这是 Xcode 快捷键，不是终端命令。保持相同的 Team 与 Bundle ID 时，新版本会覆盖旧版本，应用数据通常会保留；不要先从手机删除应用。
-
-如果依赖或生成代码发生变化，先在项目根目录执行：
+需要 Flutter 3.44+。在项目根目录执行：
 
 ```bash
-# 获取或更新 Flutter 依赖
 flutter pub get
-
-# 仅在 Freezed、Riverpod 或 Drift 源定义变化后重新生成代码
-dart run build_runner build --delete-conflicting-outputs
-
-# 仅在 iOS 原生插件依赖变化后刷新 CocoaPods
-cd ios && pod install && cd ..
+flutter devices
+flutter run -d <device-id>
 ```
 
-免费 Personal Team 的开发签名通常只有 7 天有效期；到期后重新连接 iPhone，在 Xcode 中再次按 **Command + R** 即可续签安装。详见 [Flutter iOS 部署文档](https://docs.flutter.dev/deployment/ios)。
+iOS 暂不提供安装包；Mac 用户可参考[自行部署到 iPhone 的教程](https://lyrumu.top/notes/flutter%E9%A1%B9%E7%9B%AE%E9%83%A8%E7%BD%B2%E8%87%B3ios/)，在 Xcode 中为本项目配置自己的开发签名。其他平台的运行情况请以上表为准。
 
-### 其他平台
+## 本地打包
+
+以下步骤供本地手动构建；构建产物上传 GitHub Releases 前，仍需在对应设备上验证安装、导入和播放。
+
+### macOS ZIP
+
+应用最低要求 macOS 12；已在 macOS 26.6.2、Flutter 3.44.8 与 Xcode 27 上构建包含 Intel 和 Apple 芯片架构的 Release 应用。本机 Flutter SDK 中的 `font-subset` 工具被系统拦截，故构建时关闭图标字体裁剪；这不会移除应用功能。
 
 ```bash
-# 在 macOS 上运行
-flutter run -d macos
+# 获取项目依赖
+flutter pub get
+# 构建 macOS Release，避开本机被拦截的图标字体裁剪工具
+flutter build macos --release --no-tree-shake-icons
+# 创建本地打包目录
+mkdir -p build/releases
+# 保留应用包结构及资源元数据并生成 ZIP
+ditto -c -k --sequesterRsrc --keepParent 'build/macos/Build/Products/Release/Music Pocket.app' build/releases/MusicPocket-macos-universal.zip
+```
 
-# 构建 macOS Release
-flutter build macos --release
+目前没有 Apple Developer Program 的 Developer ID 证书，因此该 ZIP 只有构建时的临时签名，未经过 Developer ID 签名或公证。从 GitHub 下载后，macOS 可能阻止首次打开；确认来源后可按 [Apple 官方步骤](https://support.apple.com/zh-cn/102445)在“系统设置 → 隐私与安全性”中选择“仍要打开”。不要关闭整个系统的安全检查。
 
-# 在已连接的 Android 设备上运行，先用 flutter devices 查看设备 ID
-flutter run -d <device-id>
+### Android APK
 
-# 构建可侧载的 Android APK
+先在本机安装 Android SDK 和 JDK，用 `flutter doctor -v` 检查。首次发布前，用 `keytool` 在仓库外创建并备份自己的签名密钥；密钥及密码丢失后，后续 APK 将无法以原签名覆盖安装。将下面的路径改为你自己选定的私有位置，执行时按提示设置密码：
+
+```bash
+# 在仓库外创建长期保管的 Android 签名密钥
+keytool -genkeypair -v -keystore /absolute/private/path/music-pocket-release.jks -storetype PKCS12 -keyalg RSA -keysize 2048 -validity 10000 -alias music-pocket
+```
+
+在本机创建 `android/key.properties`（已被 `android/.gitignore` 忽略），填入实际密码和密钥绝对路径：
+
+```properties
+storePassword=你的密钥库密码
+keyPassword=你的密钥密码
+keyAlias=music-pocket
+storeFile=/absolute/private/path/music-pocket-release.jks
+```
+
+Windows 上填写 `storeFile` 时，路径中的反斜杠需写成双反斜杠。不要提交 `key.properties`、密钥或密码。缺少这些配置时，Android Release 构建会明确失败；Debug 构建不需要发布密钥。
+
+```bash
+# 获取项目依赖
+flutter pub get
+# 构建已签名的 APK
 flutter build apk --release
 
-# 构建用于 Google Play 的 Android App Bundle
-flutter build appbundle --release
-
-# 在 Windows 上运行
-flutter run -d windows
-
-# 构建 Windows Release
-flutter build windows --release
+# 查看已连接的 Android 设备
+flutter devices
+# 将 APK 安装到已连接设备
+adb install -r build/app/outputs/flutter-apk/app-release.apk
 ```
 
-平台签名与打包细节见 Flutter 官方文档：[Android](https://docs.flutter.dev/deployment/android)、[macOS](https://docs.flutter.dev/deployment/macos)、[Windows](https://docs.flutter.dev/platform-integration/windows/building)。
+APK 位于 `build/app/outputs/flutter-apk/app-release.apk`。后续发布保持同一密钥，并在 `pubspec.yaml` 中递增 `version` 的 `+` 后构建号。更多细节见 [Flutter Android 发布文档](https://docs.flutter.dev/deployment/android)。
 
-## 哪些情况需要付费
+### Windows x64 压缩包
 
-| 目标 | 是否必须付费 |
-| --- | --- |
-| iPhone 自用真机调试 | 否。免费 Apple Account + Personal Team 即可，但开发签名约 7 天到期 |
-| TestFlight / App Store 发布 | 是。需加入 Apple Developer Program，官方价格为每年 99 美元或当地等值价格 |
-| macOS 本机自用构建 | 否 |
-| macOS App Store，或使用 Developer ID 公证后可信地站外分发 | 是。使用同一个 Apple Developer Program 会员资格 |
-| Android APK 自行安装或分发 | 否 |
-| Google Play 发布 | 是。Play Console 注册费为一次性 25 美元 |
-| Windows 本地运行或直接分发 | 否 |
-| Microsoft Store 发布 | 微软当前的新账号注册流程不收注册费，但需要完成身份验证 |
+在 Windows 上安装 Flutter 与 Visual Studio 的“使用 C++ 的桌面开发”工作负载，确认 `flutter doctor -v` 后，在项目根目录用 PowerShell 执行：
 
-费用与资格可能调整，请以上架时的官方页面为准：[Apple 会员比较](https://developer.apple.com/support/compare-memberships/)、[Google Play 开发者账号](https://support.google.com/googleplay/android-developer/answer/6112435)、[Microsoft Store 开发者账号 FAQ](https://learn.microsoft.com/en-us/windows/apps/publish/faq/open-developer-account)。
-
-## 本地开发
-
-```bash
-# 获取依赖
+```powershell
+# 获取项目依赖
 flutter pub get
+# 构建 Windows x64 Release
+flutter build windows --release
 
-# 静态分析
-flutter analyze
-
-# 运行测试
-flutter test
+# 将整个 Release 目录的内容打成 ZIP，保留 DLL 和 data 目录
+Compress-Archive -Path .\build\windows\x64\runner\Release\* -DestinationPath .\build\MusicPocket-windows-x64.zip -Force
 ```
 
-详细开发记录见 [DONE.md](DONE.md)。
+解压后运行 `music_pocket.exe`；请在 Windows 实机核对导入、播放与资料库。目标电脑还需要 Microsoft Visual C++ 运行库，见 [Flutter Windows 分发说明](https://docs.flutter.dev/platform-integration/windows/building)。当前没有 Windows 代码签名证书，下载后的程序可能触发 [SmartScreen 提示](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)。
+
+## 发布前
+
+先在对应设备验证每个产物，再通过 [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository) 创建预发布版本并上传已验证的 APK、macOS ZIP 和 Windows ZIP；iOS 只提供上面的自行部署教程。`build/` 已被 Git 忽略，提交源码不会自动附带安装包。未完成验证的平台不要标记为可直接使用。
+
+## 技术栈
+
+Flutter / Dart · Riverpod · Drift / SQLite · just_audio / audio_service · audio_metadata_reader
+
+运行 `flutter analyze` 和 `flutter test` 可检查代码；开发记录见 [DONE.md](DONE.md)。

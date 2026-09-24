@@ -418,3 +418,27 @@ test/
 - iOS 完整 Release 验证受阻于 SwiftPM 下载已有 DKImagePickerController 依赖，已停止本次构建和子进程；iPhone 冷启动、Android/Windows/Linux 实机效果尚待验证。Web 仅同步图标，未新增浏览器音频与数据库兼容。
 - macOS 完整 Release 构建被原有 `MACOSX_DEPLOYMENT_TARGET=10.15` 与当前 Xcode 要求最低 12.0 的冲突阻断；未擅自提高项目最低系统版本。
 - macOS 图标通过 `actool` 编译；本次窗口背景改动通过 Swift 独立类型检查（临时插件注册桩、macOS 12.0 编译目标）。深浅色 Flutter 启动预览保存在 `build/brand-preview/`。
+
+## ✅ 第 42 步：README 改为访客视角并显示圆角封面
+- README 聚焦产品定位、已实现功能、平台验证范围与从源码运行；移除个人重新部署步骤和各平台费用清单。
+- 封面使用带圆角裁切的自包含 SVG，内嵌原 PNG 字节不变，避免 GitHub 移除内联 CSS 后圆角失效。
+- 验证：SVG XML、内嵌原图一致性与 Quick Look 圆角预览通过；`git diff --check` 通过。文档和展示资源改动不涉及 Flutter 运行逻辑。
+
+## ✅ 第 43 步：Android 本地 Release 签名准备
+- 按锁定版 `audio_service` 的要求补齐 Android 后台播放 Service、媒体按键 Receiver、权限及 Activity 接入。
+- Release 改为读取本机忽略的 `android/key.properties` 和仓库外密钥；缺少签名配置或密钥文件时明确失败，避免继续生成调试密钥签名的发布包。
+- README 记录密钥创建、备份、APK 构建与安装步骤。Android 清单 XML、忽略规则和 `git diff --check` 已通过；当前 macOS 缺少 Android SDK，尚未完成 APK 构建或真机验证。
+
+## ✅ 第 44 步：Windows 本地 Release 压缩包说明
+- README 记录在 Windows x64 上构建并压缩完整 Release 目录的方法，包括 DLL、`data` 与目标机 Visual C++ 运行库要求。
+- 当前开发机是 macOS；Windows Release 构建、安装、导入与播放仍需在 Windows 实机验证。
+
+## ✅ 第 45 步：macOS 12 Release 构建与预览包
+- 将 Runner、Podfile 和 Pods 构建目标统一到 macOS 12.0，修复 Xcode 27 不再支持 10.15 的 Release 构建失败。
+- 本机 Flutter SDK 的 `font-subset` 被 Gatekeeper 拦截且签名校验失败；保留安全拦截，使用 `--no-tree-shake-icons` 完成 Release 构建。
+- 生成 Intel/Apple 双架构 `Music Pocket.app` 和 `build/releases/MusicPocket-macos-universal.zip`（21 MB）；ZIP 完整性及解压后的应用签名完整性通过。应用仅有临时签名，未公证、未在其他 Mac 上验证，首次打开需要用户按系统提示确认。
+- README 增加 macOS ZIP 构建步骤和用户指定的 iOS 自行部署教程链接；没有发布或上传安装包。
+
+## ✅ 第 46 步：移除不存在的资源目录声明
+- `pubspec.yaml` 不再声明未被代码使用且实际不存在的 `assets/images/`。
+- `flutter analyze --no-pub` 无问题，`flutter test --no-pub` 23/23 通过；修正后的 macOS Release 再次构建成功。
